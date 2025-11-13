@@ -51,7 +51,7 @@ import time
 import threading
 from threading import Event
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Tuple, List, Dict, Any
 from collections import defaultdict, Counter
@@ -674,7 +674,7 @@ def get_unique_filename(base_name: str, extension: str, destination: Path) -> Pa
             return filename
         counter += 1
 
-def format_duration(duration: datetime.timedelta) -> str:
+def format_duration(duration: timedelta) -> str:
     """Converts timedelta to readable string like '1d 4h 15m'"""
     total_seconds = int(duration.total_seconds())
     days, remainder = divmod(total_seconds, 86400)
