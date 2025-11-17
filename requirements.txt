@@ -1,12 +1,19 @@
-# PhotoSort v9.1 Dependencies
+# PhotoSort Dependencies
 # Install with: pip install -r requirements.txt
 
 # ============================================
-# Core Dependencies
+# Core Dependencies (CLI + TUI)
 # ============================================
 Pillow>=10.0.0              # Image processing
 requests>=2.31.0            # API calls to Ollama
-imagehash>=4.3.1            # Legacy burst detection (fallback)
+numpy>=1.24.0               # Numerical operations
+colorama>=0.4.6             # Terminal colors (CLI)
+
+# ============================================
+# TUI Interface (v12.1+)
+# ============================================
+textual>=0.40.0             # Terminal User Interface framework
+rich>=13.0.0                # Rich text formatting (used by Textual)
 
 # ============================================
 # v8.0 Engines (Optional but Recommended)
@@ -20,43 +27,48 @@ image-quality>=1.2.7        # Also known as 'imquality'
 opencv-python>=4.8.0
 
 # ============================================
-# EXIF and Metadata
+# Burst Detection (Legacy Fallback)
+# ============================================
+imagehash>=4.3.1            # pHash-based burst detection
+
+# ============================================
+# UI/Progress (CLI)
+# ============================================
+tqdm>=4.66.0                # Progress bars
+questionary>=2.0.0          # Interactive prompts
+
+# ============================================
+# EXIF and Metadata (System Dependencies)
 # ============================================
 # Note: PhotoSort uses exiftool (external command)
 # Install with: brew install exiftool (macOS)
 #           or: apt-get install libimage-exiftool-perl (Linux)
 
 # ============================================
-# RAW Format Support
+# RAW Format Support (System Dependencies)
 # ============================================
 # Note: PhotoSort uses dcraw (external command)
 # Install with: brew install dcraw (macOS)
 #           or: apt-get install dcraw (Linux)
 
 # ============================================
-# UI/Progress (Optional)
+# Configuration File Support
 # ============================================
-tqdm>=4.66.0               # Progress bars
-questionary>=2.0.0         # Interactive prompts
-
-# ============================================
-# Additional Utilities
-# ============================================
-numpy>=1.24.0              # Numerical operations
+# configparser is built-in to Python 3.x (no install needed)
 
 # ============================================
 # Development Dependencies (Optional)
 # ============================================
 # Uncomment for development work:
-# pytest>=7.4.0            # Testing
-# black>=23.0.0            # Code formatting
-# flake8>=6.1.0            # Linting
-# mypy>=1.5.0              # Type checking
+# pytest>=7.4.0             # Testing
+# black>=23.0.0             # Code formatting
+# flake8>=6.1.0             # Linting
+# mypy>=1.5.0               # Type checking
 
 # ============================================
 # Installation Notes
 # ============================================
-# 1. Create virtual environment:
+# 1. Create virtual environment (recommended):
 #    python3 -m venv venv
 #    source venv/bin/activate  (macOS/Linux)
 #    venv\Scripts\activate     (Windows)
@@ -64,12 +76,14 @@ numpy>=1.24.0              # Numerical operations
 # 2. Install dependencies:
 #    pip install -r requirements.txt
 #
-# 3. Install system dependencies:
-#    macOS:
-#      brew install exiftool dcraw
+# 3. For macOS system Python (if not using venv):
+#    pip install -r requirements.txt --break-system-packages
 #
-#    Linux:
-#      sudo apt-get install libimage-exiftool-perl dcraw
+# 4. Install system tools:
+#    macOS:  brew install exiftool dcraw
+#    Ubuntu: sudo apt-get install exiftool dcraw
+#    Fedora: sudo dnf install perl-Image-ExifTool dcraw
 #
-# 4. First run downloads CLIP model (~600MB)
-#    Stored in: ~/.cache/torch/sentence_transformers/
+# 5. Install Ollama for AI features:
+#    https://ollama.com/download
+#    ollama pull qwen2.5vl:3b
