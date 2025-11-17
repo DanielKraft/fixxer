@@ -1,0 +1,185 @@
+/* ==============================================================================
+ * PhotoSort TUI v12.1 - VisionCrew Edition CSS
+ * ============================================================================== */
+
+/* Base colors (variables) must be defined at the root */
+$background: rgb(10, 10, 10);  /* Very dark grey, almost black */
+$surface: rgb(20, 20, 20);     /* Panel background */
+$primary: #C00000;            /* Bright Red */
+$secondary: #FFFFFF;          /* White */
+$text: #CCCCCC;                /* Off-white text */
+$status-ok: #00FFFF;          /* Cyan for "Ready" status */
+
+Screen {
+    background: $background;
+    color: $text;
+    border: solid $primary;  /* Simple border, no width percentage */
+}
+
+/* ==============================================================================
+ * Layout & Containers
+ * ============================================================================== */
+
+#logo {
+    width: 100%;
+    height: auto;
+    text-align: left;  /* Left-aligned logo */
+    padding: 1 2;
+}
+
+.panel-title {
+    height: auto;
+    padding-bottom: 1;
+    color: $primary;
+    text-style: bold;
+}
+
+#left-panel {
+    padding-right: 1;
+    width: 1fr;
+}
+
+#right-panel {
+    padding-left: 1;
+    width: 1fr;
+}
+
+/* ==============================================================================
+ * Widgets
+ * ============================================================================== */
+
+Button {
+    outline: none;
+}
+Button:focus {
+    border: solid $primary;
+}
+
+/* --- Scrollbar Styling (Red to match theme) --- */
+Scrollbar {
+    background: $surface;
+    color: $primary;
+}
+Scrollbar:hover {
+    color: #FF0000;
+}
+Scrollbar.-active {
+    color: #FF4444;
+}
+
+/* --- File Browser --- */
+#file-browser-container {
+    height: 1fr;
+    background: $surface;
+    border: solid $primary;
+    padding: 1;
+}
+
+DirectoryTree {
+    background: $surface;
+}
+
+.directory-tree--guides {
+    color: $primary 50%;
+}
+
+.directory-tree--selected {
+    background: $primary !important;
+    color: $background !important;
+    text-style: bold;
+}
+
+/* --- Status & Logs --- */
+#status-bar {
+    height: auto;
+    margin-bottom: 1;
+    padding: 1;
+    background: $surface;
+    border: solid $primary;
+}
+
+#log-panel {
+    height: 1fr;
+    min-height: 10;
+}
+
+#log-container {
+    height: 100%;
+    background: $surface;
+    padding: 1;
+    min-height: 10;
+    border: solid $primary;
+}
+
+/* --- Progress Spinner Container --- */
+#progress-container {
+    height: auto;
+    width: 100%;
+    padding: 1;
+    background: $surface;
+    margin-bottom: 1;
+    border: solid $primary;
+}
+
+#progress-container Horizontal {
+    height: auto;
+    width: 100%;
+}
+
+#spinner-display {
+    height: auto;
+    padding-bottom: 1;
+    text-align: center;
+    color: $primary;
+}
+
+#progress-phrase {
+    height: auto;
+    padding-top: 1;
+    color: #00FFFF;
+    width: 1fr;
+}
+
+#progress-timer {
+    height: auto;
+    color: #00FFFF;
+    text-align: right;
+    width: auto;
+}
+
+/* --- Button Bar --- */
+#button-bar {
+    height: auto;
+    width: 100%;
+    align: center middle;
+    padding: 1 0;
+}
+
+.workflow-btn,
+.path-btn {
+    margin: 0 1;
+    width: 1fr;
+    background: $surface;
+    color: $primary;
+    border: solid $primary 50%;
+}
+
+.workflow-btn:hover,
+.path-btn:hover {
+    background: $primary;
+    color: $background;
+    text-style: bold;
+    border: solid $primary;
+}
+
+#btn-quit {
+    background: $primary;
+    color: $background;
+    text-style: bold;
+    border: solid $primary;
+}
+
+#btn-quit:hover {
+    background: $surface;
+    color: $primary;
+}
