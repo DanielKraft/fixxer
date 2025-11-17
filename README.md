@@ -1,251 +1,256 @@
-# 📸 PhotoSort v9.1
+# 📷 PhotoSort v12.1
 
 **AI-Powered Photography Workflow Automation**
 
-PhotoSort is a professional-grade command-line tool that automates the tedious parts of photography post-processing using local AI inference. Built for photographers who shoot hundreds of photos per session and need smart, reliable automation.
+PhotoSort is a professional-grade tool that automates the tedious parts of photography post-processing using local AI inference. Built for photographers who shoot hundreds of photos per session and need smart, reliable automation.
 
 > Created by Nick (∞vision crew)  
 > Engineered with Claude (Anthropic) + Gemini (Google)
 
-**All your wishlist items, ready to integrate! 🎉**
+---
+
+## 🆕 What's New in v12.1
+
+- **Full TUI Interface** - Terminal User Interface with mouse support, file browser, and real-time logs
+- **Engine Detection** - BRISQUE and CLIP availability checks at startup
+- **Animated Progress** - Block spinner with rotating motivational phrases
+- **Persistent Config** - Settings auto-save to `~/.photosort.conf`
+- **RAW Support** - Enhanced dcraw integration for RW2, ARW, CR2, NEF, DNG, and more
+- **AI Session Naming** - Vision-based folder naming from actual image content
 
 ---
 
 ## 📦 What's Included
 
-This package contains **4 enhancements** + **3 guides** to level up your PhotoSort v9.0:
+### Core Files
+- `photosort_tui_styled.py` - **NEW** Terminal User Interface (v12.1)
+- `photosort_visioncrew.css` - **NEW** Theme stylesheet
+- `photosort_engine.py` - Backend processing engine (v10.7)
+- `photosort.py` - Original CLI version (v9.3)
+- `phrases.py` - Rotating progress messages
 
-### Enhancements
-1. **photosort.conf** - Fixed config with qwen model for critique
-2. **test_critique_prompt.py** - Standalone tool to test and iterate on critique prompts
-3. **directory_selector.py** - Enhanced UI with "arrow keys" hint and current directory option
-4. **burst_enhancements.py** - AI-named burst folders in organized parent directory
+### Documentation
+- `README.md` - This file
+- `README_TUI.md` - TUI-specific documentation
+- `requirements.txt` - Python dependencies
 
-### Guides
-5. **QUICK_START.md** - 5-minute integration guide (START HERE!)
-6. **integration_guide.py** - Comprehensive checklist with testing steps
-7. **BEFORE_AFTER.txt** - Visual comparison showing what changed
-
----
-
-## 🎯 What Each Enhancement Fixes
-
-| Enhancement | Problem | Solution |
-|------------|---------|----------|
-| **Config Fix** | Critique loads minicpm (slow) | Uses qwen2.5vl:3b (fast, reliable) |
-| **Prompt Tester** | Can't iterate on prompts | Standalone tool with 3 built-in prompt styles |
-| **Directory UX** | Users confused by picker | "Arrow keys" hint + current dir option |
-| **Burst Organization** | `burst-001`, `burst-002` clutter | `_Bursts/golden-retriever-playing/` |
+### Configuration
+- `.photosort.conf` - User configuration (auto-generated)
 
 ---
 
-## ⚡ Quick Start (5 minutes)
+## 🚀 Quick Start
 
-### Step 1: Fix Critique (30 seconds)
-```bash
-cp ~/.photosort.conf ~/.photosort.conf.backup
-cp photosort.conf ~/.photosort.conf
-```
-
-### Step 2: Test Prompts (2 minutes)
-```bash
-python test_critique_prompt.py sample.jpg qwen2.5vl:3b
-```
-
-### Step 3: Upgrade Directory Picker (30 seconds)
-```bash
-# Use the FIXED version (v2) to avoid rendering bugs
-cp directory_selector_v2.py directory_selector.py
-
-# If already installed, backup first:
-cp directory_selector.py directory_selector.py.backup
-cp directory_selector_v2.py directory_selector.py
-```
-
-**⚠️ Important:** Use `directory_selector_v2.py` (the fixed version) to avoid 
-an inquirer rendering bug that causes "[?]" to repeat. See 
-EMERGENCY_FIX_DIRECTORY_SELECTOR.md if you encounter issues.
-
-### Step 4: Add Burst Features (2 minutes)
-See `burst_enhancements.py` for detailed integration instructions.
-
-**Done!** 🎉
-
----
-
-## 📋 Detailed Documentation
-
-For step-by-step instructions with testing guidance:
-- **QUICK_START.md** - Fast track (recommended first read)
-- **integration_guide.py** - Complete checklist with verification steps
-- **BEFORE_AFTER.txt** - Visual comparison showing the impact
-
----
-
-## 🧪 Testing Your Installation
-
-### Verify Critique Model
-```bash
-python photosort.py --critique
-# Should show: "qwen2.5vl:3b"
-```
-
-### Verify Directory Picker
-```bash
-python photosort.py --auto
-# Should show: "💡 Use arrow keys to navigate"
-# Current directory should appear in list
-```
-
-### Verify Burst Organization
-```bash
-python photosort.py --preview --group-bursts
-# Should create _Bursts/ parent folder
-# Folders should have AI-generated names
-```
-
----
-
-## 💡 Pro Tips
-
-### Best Critique Prompt
-After testing, use **PROMPT_V2_PHOTOGRAPHY_EXPERT** because:
-- Gives specific Lightroom values (e.g., "Highlights -30")
-- Includes HSL adjustments (e.g., "Orange -10 saturation")
-- Provides step-by-step workflow
-
-Edit `test_critique_prompt.py` line 116 to switch prompts.
-
-### Performance
-- Config fix: **No performance impact** (actually faster!)
-- Prompt tester: **Standalone** (doesn't affect workflow)
-- Directory picker: **No performance impact**
-- Burst AI naming: Adds ~2 seconds per burst group
-
----
-
-## 🔄 Rollback Plan
-
-If anything breaks:
+### 1. Install Dependencies
 
 ```bash
-# Config
-cp ~/.photosort.conf.backup ~/.photosort.conf
+# Clone the repo
+git clone https://github.com/yourusername/photosort.git
+cd photosort
 
-# Directory selector
-cp directory_selector.py.backup directory_selector.py
+# Create virtual environment (recommended)
+python3 -m venv venv
+source venv/bin/activate  # macOS/Linux
 
-# Burst features
-git checkout photosort.py  # or restore from backup
+# Install Python packages
+pip install -r requirements.txt
+```
+
+### 2. Install System Tools
+
+**macOS (Homebrew):**
+```bash
+brew install exiftool dcraw
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install exiftool dcraw
+```
+
+**Fedora:**
+```bash
+sudo dnf install perl-Image-ExifTool dcraw
+```
+
+### 3. Install Ollama (for AI features)
+
+```bash
+# Download from https://ollama.com/download
+# Then pull the recommended model:
+ollama pull qwen2.5vl:3b
+```
+
+### 4. Run PhotoSort
+
+**TUI (Recommended):**
+```bash
+python photosort_tui_styled.py
+```
+
+**CLI (Original):**
+```bash
+python photosort.py
 ```
 
 ---
 
-## 🆘 Troubleshooting
+## 🎮 TUI Interface
 
-**Critique still uses minicpm**
-- Delete old config: `rm ~/.photosort.conf`
-- Copy new one: `cp photosort.conf ~/.photosort.conf`
+The new Terminal User Interface provides:
 
-**Directory picker doesn't show hint**
-- Verify you replaced the right file
-- Check that inquirer is installed: `pip install inquirer`
-
-**Burst folders still named burst-001**
-- Verify `get_ai_burst_folder_name()` was added to photosort.py
-- Check Ollama is running: `ollama list`
-
-**AI naming fails for all bursts**
-- Check model is available: `ollama list | grep qwen`
-- Falls back to burst-001 automatically (safe failure)
-
----
-
-## 📊 Impact Summary
-
-### Time Saved Per Session
-- Finding specific burst: ~4 minutes
-- Setting up critique: ~15 minutes  
-- Directory selection: Friction removed
-
-### Quality Improvements
-- Critique: Vague → Actionable Lightroom settings
-- Organization: Cluttered → Professional hierarchy
-- UX: Confusing → Clear instructions
-
----
-
-## 📁 File Structure
+- **Visual file browser** - Navigate with mouse or keyboard
+- **Real-time log panel** - Watch operations as they happen
+- **Status dashboard** - Current settings and workflow state
+- **Button bar** - Quick access to all workflows
 
 ```
-v9.0-enhancements/
-├── README.md                   ← You are here
-├── QUICK_START.md              ← Start here for integration
-├── BEFORE_AFTER.txt            ← Visual comparison
-├── photosort.conf              ← Fixed config
-├── test_critique_prompt.py     ← Standalone tester
-├── directory_selector.py       ← Enhanced picker
-├── burst_enhancements.py       ← AI naming code
-└── integration_guide.py        ← Comprehensive checklist
+┌─────────────────────────────────────────────────────────────┐
+│ VISION CREW                                                 │
+├─────────────────────────────────────────────────────────────┤
+│ Source Browser          │ Status: Ready                     │
+│ [File Tree]             │ [■ □ □] Processing...             │
+│                         │ [Log Output]                      │
+├─────────────────────────────────────────────────────────────┤
+│ [Auto] [Bursts] [Cull] [Stats] [Critique] [Source] [Dest]  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+See `README_TUI.md` for detailed TUI documentation.
+
+---
+
+## ⚙️ Features
+
+### Auto Workflow
+Complete pipeline: Burst Detection → Quality Culling → AI Renaming → Smart Organization
+
+### Burst Detection
+Groups similar consecutive shots using:
+- **CLIP Engine** - Semantic similarity (recommended)
+- **pHash Fallback** - Perceptual hashing
+
+### Quality Culling
+Sorts images into quality tiers:
+- **Tier A** - Hero shots (sharp, well-exposed)
+- **Tier B** - Usable images
+- **Tier C** - Review needed
+
+Uses:
+- **BRISQUE** - No-reference image quality assessment
+- **Laplacian Variance** - Sharpness detection (fallback)
+
+### AI-Powered Features
+- **Smart Renaming** - Descriptive filenames from image content
+- **Session Naming** - Evocative folder names based on visual themes
+- **Image Critique** - Professional feedback on composition and technique
+
+---
+
+## 📁 Directory Structure
+
+After running Auto workflow:
+
+```
+~/Pictures/
+└── 2025-11-16_Meridian/          # AI-named session folder
+    ├── Architecture/              # Smart category folders
+    │   ├── urban-skyline-sunset.RW2
+    │   └── modern-glass-facade.RW2
+    ├── Nature/
+    │   └── autumn-leaves-reflection.RW2
+    └── Street-Scenes/
+        └── busy-intersection-night.RW2
 ```
 
 ---
 
-## 🎉 What You Get
+## 🔧 Configuration
 
-After integration:
+Settings are stored in `~/.photosort.conf`:
 
+```ini
+[behavior]
+last_source_path = /path/to/source
+last_destination_path = /path/to/destination
+
+[ingest]
+default_model = qwen2.5vl:3b
+
+[cull]
+sharpness_good = 25.0
+sharpness_dud = 45.0
+
+[burst]
+similarity_threshold = 12
+burst_algorithm = clip
 ```
-Before:                          After:
-├── burst-001/                   ├── _Bursts/
-├── burst-002/                   │   ├── golden-retriever-playing/
-├── burst-003/                   │   ├── sunset-over-ocean/
-                                 │   └── city-street-night/
 
-Critique: "Try warming it up"    Critique: "+200K color temp,
-(vague)                          Orange -10 sat" (actionable!)
-
-Directory picker: ???            Directory picker: "Use arrow keys"
-```
+The TUI automatically saves changes to source, destination, and model settings.
 
 ---
 
-## 🚀 Integration Effort
+## 🎯 RAW Format Support
 
-| Task | Time | Difficulty |
-|------|------|-----------|
-| Config fix | 30 sec | Easy (copy file) |
-| Prompt tester | 0 sec | None (standalone) |
-| Directory picker | 30 sec | Easy (copy file) |
-| Burst features | 2 min | Medium (code integration) |
-| **Total** | **~5 min** | **Low** |
+PhotoSort supports all major RAW formats via dcraw:
 
----
+- **Panasonic** - .RW2
+- **Sony** - .ARW
+- **Canon** - .CR2, .CR3
+- **Nikon** - .NEF
+- **Adobe** - .DNG
+- **Fujifilm** - .RAF
+- **Olympus** - .ORF
+- **Pentax** - .PEF
+- **Samsung** - .SRW
 
-## ✅ Validation Checklist
-
-After integration, verify:
-
-- [ ] Critique shows `qwen2.5vl:3b` on startup
-- [ ] Directory picker shows "Use arrow keys" hint
-- [ ] Current directory appears in source list
-- [ ] Burst folders go into `_Bursts/` parent
-- [ ] Burst folders have AI-generated names (not burst-001)
+Plus standard formats: JPG, PNG, TIFF, BMP, WebP
 
 ---
 
-## 🤝 Support
+## 📊 Version History
 
-All enhancements are:
-- ✅ Backward compatible
-- ✅ Safe to roll back
-- ✅ Tested with PhotoSort v9.0
-- ✅ Low risk to integrate
+### v12.1 - TUI Edition (2025-11-16)
+- Full Terminal User Interface with mouse support
+- BRISQUE and CLIP engine detection at startup
+- Animated block spinner during workflows
+- Config auto-saves when changing settings
+- Fixed mouse event leakage in Textual
+
+### v10.7 - Engine Improvements (2025-11-16)
+- Fixed session naming (uses destination paths)
+- Pre-tests image encoding before selecting samples
+- Added save_app_config() for persistence
+- RAW conversion tries embedded thumbnail first
+
+### v9.3 - Original CLI
+- Complete automation pipeline
+- Local AI inference with Ollama
+- CLIP-based burst detection
+- BRISQUE quality assessment
 
 ---
 
-**Ready to upgrade? Start with QUICK_START.md!** 🎯
+## 🤝 Contributing
+
+PhotoSort is built through collaborative AI development with Claude (Anthropic) and Gemini (Google). Issues and feature requests welcome!
 
 ---
 
-*PhotoSort v9.0 Enhancement Package by Claude & Nick (∞vision crew)*
+## 📜 License
+
+MIT License - Use responsibly. Unleash creatively. Inference locally.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Ollama** - Local AI model serving
+- **Textual** - Beautiful TUI framework
+- **sentence-transformers** - CLIP embeddings
+- **dcraw** - RAW image conversion
+- **ExifTool** - Metadata extraction
+
+---
+
+*"Less noise, more signal."* - ∞vision crew
