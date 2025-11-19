@@ -29,9 +29,16 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
 from textual.screen import Screen, ModalScreen
-from textual.widgets import Button, Label, Static, DirectoryTree
+from textual.widgets import Button, Label, Static, DirectoryTree, Sparkline
 from textual.message import Message
 from textual.timer import Timer
+
+# System monitoring
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 # Import phrases
 try:
@@ -327,6 +334,94 @@ class DirectorySelectScreen(ModalScreen[Optional[Path]]):
 # Widget Components
 # ==============================================================================
 
+class SystemMonitor(Container):
+    """Real-time system resource monitor with sparkline graphs - RAM & CPU only."""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.ram_data = [0.0] * 50  # 50 points for sparkline (100 seconds of history)
+        self.cpu_data = [0.0] * 50
+        self.update_timer: Optional[Timer] = None
+    
+    def compose(self) -> ComposeResult:
+        if not PSUTIL_AVAILABLE:
+            yield Static("[dim]System monitoring unavailable (psutil not installed)[/dim]", id="sysmon-error")
+            return
+        
+        with Horizontal(id="sysmon-row-1"):
+            yield Static("RAM:", classes="sysmon-label")
+            yield Sparkline(self.ram_data, id="ram-sparkline", classes="sysmon-sparkline")
+            yield Static("0%", id="ram-value", classes="sysmon-value")
+        
+        with Horizontal(id="sysmon-row-2"):
+            yield Static("CPU:", classes="sysmon-label")
+            yield Sparkline(self.cpu_data, id="cpu-sparkline", classes="sysmon-sparkline")
+            yield Static("0%", id="cpu-value", classes="sysmon-value")
+    
+    def on_mount(self) -> None:
+        """Start the monitoring timer when mounted."""
+        if PSUTIL_AVAILABLE:
+            self.update_timer = self.set_interval(2.0, self.update_stats)
+            # Force initial update after a brief delay
+            self.set_timer(0.5, self.update_stats)
+    
+    def on_unmount(self) -> None:
+        """Stop the monitoring timer when unmounted."""
+        if self.update_timer:
+            self.update_timer.stop()
+    
+    def update_stats(self) -> None:
+        """Update system statistics and sparklines."""
+        if not PSUTIL_AVAILABLE:
+            return
+        
+        try:
+            # Get CPU usage
+            cpu_percent = psutil.cpu_percent(interval=0.1)
+            
+            # Get RAM usage
+            ram = psutil.virtual_memory()
+            ram_percent = ram.percent
+            
+            # Update data arrays (FIFO)
+            self.cpu_data.append(cpu_percent)
+            self.cpu_data.pop(0)
+            self.ram_data.append(ram_percent)
+            self.ram_data.pop(0)
+            
+            # Update RAM sparkline and value
+            try:
+                ram_sparkline = self.query_one("#ram-sparkline", Sparkline)
+                # Create new list to ensure Textual detects the change
+                ram_sparkline.data = list(self.ram_data)
+                # Force refresh
+                ram_sparkline.refresh()
+                
+                ram_value = self.query_one("#ram-value", Static)
+                ram_color = "red" if ram_percent > 85 else "white"
+                ram_value.update(f"[{ram_color}]{ram_percent:.0f}%[/{ram_color}]")
+            except Exception:
+                pass
+            
+            # Update CPU sparkline and value
+            try:
+                cpu_sparkline = self.query_one("#cpu-sparkline", Sparkline)
+                # Create new list to ensure Textual detects the change
+                cpu_sparkline.data = list(self.cpu_data)
+                # Force refresh
+                cpu_sparkline.refresh()
+                
+                cpu_value = self.query_one("#cpu-value", Static)
+                cpu_color = "red" if cpu_percent > 80 else "white"
+                cpu_value.update(f"[{cpu_color}]{cpu_percent:.0f}%[/{cpu_color}]")
+            except Exception:
+                pass
+                
+        except Exception:
+            # Silently fail - don't disrupt the app
+            pass
+
+
 class LogPanel(Container):
     """A widget to display scrollable logs with rich formatting."""
     
@@ -486,6 +581,11 @@ class PhotoSortTUI(App):
             
             with Vertical(id="right-panel"):
                 yield Static("[bold]Status & Logs[/bold]", classes="panel-title")
+                
+                # System Monitor - GPU, RAM, CPU sparklines
+                self.system_monitor = SystemMonitor(id="system-monitor")
+                yield self.system_monitor
+                
                 self.status_bar = Static(id="status-bar")
                 yield self.status_bar
                 

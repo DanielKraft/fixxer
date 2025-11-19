@@ -93,21 +93,71 @@ DirectoryTree {
 #status-bar {
     height: auto;
     margin-bottom: 1;
-    padding: 1;
+    padding: 0 1;
     background: $surface;
     border: solid $primary;
 }
 
+/* --- System Monitor --- */
+#system-monitor {
+    height: auto;
+    margin-bottom: 1;
+    padding: 1 1;  /* FIXED: Added vertical padding for breathing room */
+    align: center middle;  /* FIXED: Center content vertically and horizontally */
+    background: $surface;
+    border: solid $primary 50%;
+}
+
+#sysmon-row-1,
+#sysmon-row-2 {
+    height: auto;
+    width: 100%;
+    align: left middle;
+    padding: 0;
+}
+
+.sysmon-label {
+    width: 6;
+    color: $primary;
+    text-style: bold;
+}
+
+.sysmon-sparkline {
+    width: 1fr;
+    height: 3;
+    margin: 0 1;
+}
+
+.sysmon-value {
+    width: 5;
+    text-align: right;
+    text-style: bold;
+}
+
+#sysmon-error {
+    color: $text 50%;
+    text-align: center;
+}
+
+/* Sparkline styling - WHITE for tactical look */
+#ram-sparkline {
+    color: $secondary;
+}
+
+#cpu-sparkline {
+    color: $secondary;
+}
+
 #log-panel {
     height: 1fr;
-    min-height: 10;
+    min-height: 15;
+    max-height: 1fr;
 }
 
 #log-container {
-    height: 100%;
+    height: 1fr;
     background: $surface;
-    padding: 1;
-    min-height: 10;
+    padding: 0 1;
     border: solid $primary;
 }
 
@@ -115,7 +165,7 @@ DirectoryTree {
 #progress-container {
     height: auto;
     width: 100%;
-    padding: 1;
+    padding: 0 1;
     background: $surface;
     margin-bottom: 1;
     border: solid $primary;
@@ -128,14 +178,14 @@ DirectoryTree {
 
 #spinner-display {
     height: auto;
-    padding-bottom: 1;
+    padding-bottom: 0;
     text-align: center;
     color: $primary;
 }
 
 #progress-phrase {
     height: auto;
-    padding-top: 1;
+    padding-top: 0;
     color: #00FFFF;
     width: 1fr;
 }
