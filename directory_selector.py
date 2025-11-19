@@ -224,7 +224,17 @@ def select_directory_interactive(prompt: str,
     Returns:
         Selected Path or None if cancelled
     """
-    clear_screen()
+    
+    # --- GEMINI'S FIX (V9.3.1) ---
+    # We are commenting this out!
+    # Your main 'photosort.py' script already calls 'show_banner()',
+    # which clears the screen. Calling this *again* immediately
+    # wipes your banner. By removing this, the menu will
+    # print *below* the banner, which is what you want.
+    #
+    # clear_screen()
+    # --- END FIX ---
+    
     print("=" * 60)
     print("📸 PHOTOSORT SETUP")
     print("=" * 60)
