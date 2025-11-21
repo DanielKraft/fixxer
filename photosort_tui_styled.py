@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """
-PhotoSort TUI (v12.1) - VisionCrew Edition
+FIXXER ✞ TUI (v1.0) - Professional-Grade Edition
 
-- NEW (Startup): BRISQUE and CLIP engine verification checks
-- NEW (Progress): Animated block spinner instead of progress bar
-- FIX (Browser): File browser hides dotfiles with FilteredDirectoryTree
-- FIX (Logo): Proper VISIONCREW ASCII block art
-- FIX (Status): Removed confusing source/dest display from status bar
-- FIX (Timers): Proper cleanup of phrase and timer threads
-- NEW (Style): External CSS theming via photosort_visioncrew.css
-- NEW (Progress): Rotating phrases from phrases.py during workflows
-- UI: "warez" aesthetic with red/white/black color scheme
+- NEW (v1.0): Hash verification with SHA256 integrity checking
+- NEW (v1.0): JSON sidecar files for audit trail
+- NEW (v1.0): FIXXER ✞ branding - "CHAOS PATCHED // LOGIC INJECTED"
+- CORE: BRISQUE and CLIP engine verification checks
+- UI: Animated block spinner with rotating motivational phrases
+- STYLE: External CSS theming via photosort_visioncrew.css
+- AESTHETIC: Warez-inspired red/white/black color scheme
 """
 
 from __future__ import annotations
@@ -63,7 +61,7 @@ try:
         show_exif_insights,
         load_app_config,
         save_app_config,  # NEW: Save config changes
-        check_dcraw,
+        check_rawpy,  # v10.0: Python-native RAW support (replaces check_dcraw)
         SUPPORTED_EXTENSIONS  # Import to check what's supported
     )
     ENGINE_AVAILABLE = True
@@ -108,8 +106,8 @@ except ImportError as e:
         import time
         time.sleep(1)
     
-    def check_dcraw(log_callback):
-        log_callback("🚀 [Test Mode] dcraw check skipped.")
+    def check_rawpy(log_callback):
+        log_callback("🚀 [Test Mode] rawpy check skipped.")
     
     def save_app_config(config):
         return False  # Can't save in test mode
@@ -504,6 +502,96 @@ class FilteredDirectoryTree(DirectoryTree):
         ]
 
 
+class MilestoneHUD(Container):
+    """
+    Heads-Up Display for real-time workflow statistics.
+    
+    Displays 5 key metrics in tactical dashboard boxes:
+    - BURSTS: Number of burst groups detected
+    - TIER A/B/C: Quality culling distribution  
+    - HEROES: Files selected for archiving
+    - ARCHIVED: Successfully archived files
+    - TIME: Workflow duration
+    
+    Pro Mode exclusive feature.
+    """
+    
+    def compose(self) -> ComposeResult:
+        """Build the HUD layout with 5 stat boxes."""
+        with Horizontal(id="hud-layout"):
+            # Box 1: BURSTS
+            with Vertical(classes="hud-box", id="hud-bursts"):
+                yield Label("BURSTS", classes="hud-label")
+                yield Label("--", id="stat-bursts", classes="hud-value")
+            
+            # Box 2: TIER A/B/C (color-coded)
+            with Vertical(classes="hud-box", id="hud-tiers"):
+                yield Label("TIER A / B / C", classes="hud-label")
+                with Horizontal(classes="hud-multi-val"):
+                    yield Label("-", id="stat-tier-a", classes="hud-val-a")
+                    yield Label("/", classes="hud-sep")
+                    yield Label("-", id="stat-tier-b", classes="hud-val-b")
+                    yield Label("/", classes="hud-sep")
+                    yield Label("-", id="stat-tier-c", classes="hud-val-c")
+            
+            # Box 3: HEROES
+            with Vertical(classes="hud-box", id="hud-heroes"):
+                yield Label("HEROES", classes="hud-label")
+                yield Label("--", id="stat-heroes", classes="hud-value")
+            
+            # Box 4: ARCHIVED
+            with Vertical(classes="hud-box", id="hud-archived"):
+                yield Label("ARCHIVED", classes="hud-label")
+                yield Label("--", id="stat-archived", classes="hud-value")
+            
+            # Box 5: TIME
+            with Vertical(classes="hud-box", id="hud-time"):
+                yield Label("TIME", classes="hud-label")
+                yield Label("--", id="stat-time", classes="hud-value")
+    
+    def update_stat(self, category: str, value: Any) -> None:
+        """
+        Update a specific stat display.
+        
+        Args:
+            category: Stat identifier ('bursts', 'tier_a', 'heroes', 'archived', 'time')
+            value: New value to display (int, str, or tuple for tiers)
+        """
+        try:
+            if category == "bursts":
+                self.query_one("#stat-bursts", Label).update(str(value))
+            
+            elif category == "tier_a":
+                self.query_one("#stat-tier-a", Label).update(str(value))
+            elif category == "tier_b":
+                self.query_one("#stat-tier-b", Label).update(str(value))
+            elif category == "tier_c":
+                self.query_one("#stat-tier-c", Label).update(str(value))
+            
+            elif category == "heroes":
+                self.query_one("#stat-heroes", Label).update(str(value))
+            
+            elif category == "archived":
+                self.query_one("#stat-archived", Label).update(str(value))
+            
+            elif category == "time":
+                self.query_one("#stat-time", Label).update(str(value))
+        
+        except Exception:
+            # Fail silently if widget isn't mounted yet
+            pass
+    
+    def reset(self) -> None:
+        """Reset all stats to dashes (idle state)."""
+        self.update_stat("bursts", "--")
+        self.update_stat("tier_a", "-")
+        self.update_stat("tier_b", "-")
+        self.update_stat("tier_c", "-")
+        self.update_stat("heroes", "--")
+        self.update_stat("archived", "--")
+        self.update_stat("time", "--")
+
+
 # ==============================================================================
 # Main Application
 # ==============================================================================
@@ -511,8 +599,9 @@ class FilteredDirectoryTree(DirectoryTree):
 class PhotoSortTUI(App):
     """The main TUI application for PhotoSort."""
     
-    # Load the external CSS file instead of using the inline CSS variable
-    CSS_PATH = "photosort_visioncrew.css"
+    # v10.0: CSS is now loaded dynamically based on pro_mode config
+    # We'll load CSS content in __init__ instead of using CSS_PATH
+    CSS = ""  # Will be populated in __init__
     
     # Add a border title to the main app screen
     BORDER_TITLE = "V.C.S. INTERFACE"
@@ -522,6 +611,7 @@ class PhotoSortTUI(App):
         Binding("r", "refresh_config", "Refresh (r)", show=False),
         Binding("1", "set_source", "Source (1)", show=False),
         Binding("2", "set_dest", "Dest (2)", show=False),
+        Binding("f12", "toggle_pro_mode", "Pro Mode (F12)", show=False),
         Binding("ctrl+c", "quit", "Quit", show=False),
     ]
     
@@ -542,8 +632,22 @@ class PhotoSortTUI(App):
         pass
     
     def __init__(self, **kwargs):
+        # Load config FIRST to determine CSS
+        temp_config = load_app_config()
+        pro_mode = temp_config.get('pro_mode', False)
+        
+        # Load appropriate CSS file
+        css_file = "photosort_pro.css" if pro_mode else "photosort_visioncrew.css"
+        try:
+            with open(css_file, 'r') as f:
+                PhotoSortTUI.CSS = f.read()
+        except FileNotFoundError:
+            # Fallback to default if file not found
+            print(f"Warning: Could not find {css_file}, using default styling")
+            PhotoSortTUI.CSS = ""
+        
         super().__init__(**kwargs)
-        self.app_config = load_app_config()
+        self.app_config = temp_config
         self.current_thread: Optional[threading.Thread] = None
         self.workflow_active = False
         
@@ -564,22 +668,35 @@ class PhotoSortTUI(App):
         self.spinner_display: Optional[Static] = None
         self.progress_phrase: Optional[Static] = None
         self.progress_timer_display: Optional[Static] = None
+        self.milestone_hud: Optional[MilestoneHUD] = None  # HUD reference (Pro Mode only)
     
-    def get_vision_crew_logo(self) -> str:
-        """UI: Returns the VISIONCREW ASCII logo with scanlines and red CREW."""
-        # Logo matching the uploaded image style - VISION in white, CREW in red
-        # With scanline effect underneath
-        logo = """[bold white]██    ██ ██ ███████ ██  ██████  ███    ██ [/bold white][bold red]  ██████ ██████  ███████ ██    ██ [/bold red]
-[bold white]██    ██ ██ ██      ██ ██    ██ ████   ██ [/bold white][bold red] ██      ██   ██ ██      ██    ██ [/bold red]
-[bold white]██    ██ ██ ███████ ██ ██    ██ ██ ██  ██ [/bold white][bold red] ██      ██████  █████   ██ █  ██ [/bold red]
-[bold white] ██  ██  ██      ██ ██ ██    ██ ██  ██ ██ [/bold white][bold red] ██      ██   ██ ██      ████  ██ [/bold red]
-[bold white]  ████   ██ ███████ ██  ██████  ██   ████ [/bold white][bold red]  ██████ ██   ██ ███████ ██ ██ ██ [/bold red]
+    def get_fixxer_logo(self) -> str:
+        """UI: Returns the FIXXER logo - adapts to pro_mode."""
+        
+        if self.app_config.get('pro_mode', False):
+            # PRO MODE: Clean, minimal typography - LARGE
+            logo = """
 
-[dim white]▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀[/dim white]
-[dim white]▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄[/dim white]
+[bold white]F  I  X  X  E  R    / /    P  R  O[/bold white]
 
-[white]cracked by vision crew[/white]
-[bold red]SYSTEM OVERRIDE INITIATED | ACCESS GRANTED[/bold red]"""
+[dim white]═══════════════════════════════════════════════════════════════════════════════[/dim white]
+
+[bold red]T A C T I C A L   P R E C I S I O N[/bold red]
+[dim white]INTEGRITY VERIFIED  |  HASH-SECURED OPERATIONS[/dim white]"""
+        else:
+            # STANDARD MODE: Warez Edition
+            logo = """[bold white]███████ ██[/bold white]   [bold white]██   ██ ██   ██[/bold white]   [bold red]███████ ██████ [/bold red]     [bold red]██[/bold red]
+[bold white]██      ██[/bold white]   [bold white] ██ ██   ██ ██ [/bold white]   [bold red]██      ██   ██[/bold red]     [bold red]██[/bold red]
+[bold white]█████   ██[/bold white]   [bold white]  ███     ███  [/bold white]   [bold red]█████   ██████ [/bold red]  [bold red]████████[/bold red]
+[bold white]██      ██[/bold white]   [bold white] ██ ██   ██ ██ [/bold white]   [bold red]██      ██   ██[/bold red]     [bold red]██[/bold red]
+[bold white]██      ██[/bold white]   [bold white]██   ██ ██   ██[/bold white]   [bold red]███████ ██   ██[/bold red]     [bold red]██[/bold red]
+
+[dim white]▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀[/dim white]
+[dim white]▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄[/dim white]
+
+[bold red]CHAOS PATCHED // LOGIC INJECTED[/bold red]
+[dim white]INTEGRITY VERIFIED | FILE OPERATIONS SECURED[/dim white]"""
+        
         return logo
 
     def compose(self) -> ComposeResult:
@@ -587,7 +704,7 @@ class PhotoSortTUI(App):
         # The app title is now part of the logo/header area
         # NEW: Add horizontal container for logo + Easy Archive button
         with Horizontal(id="header-row"):
-            yield Static(self.get_vision_crew_logo(), id="logo")
+            yield Static(self.get_fixxer_logo(), id="logo")
             yield Button("Easy Archive", id="btn-easy", variant="default", classes="easy-btn")
         
         with Horizontal(id="main-layout"):
@@ -605,6 +722,13 @@ class PhotoSortTUI(App):
             with Vertical(id="right-panel"):
                 yield Static("[bold]Status & Logs[/bold]", classes="panel-title")
                 
+                # === MILESTONE HUD (Pro Mode Only) ===
+                # MOVED from Header to Panel
+                if self.app_config.get('pro_mode', False):
+                    self.milestone_hud = MilestoneHUD(id="milestone-hud")
+                    yield self.milestone_hud
+                # =====================================
+
                 # System Monitor - GPU, RAM, CPU sparklines
                 self.system_monitor = SystemMonitor(id="system-monitor")
                 yield self.system_monitor
@@ -657,9 +781,9 @@ class PhotoSortTUI(App):
                 self.write_to_log(f"  Added RAW formats: {', '.join(sorted(set([e.lower() for e in raw_exts])))}")
         
         try:
-            check_dcraw(self.write_to_log)
+            check_rawpy(self.write_to_log)
         except Exception as e:
-            self.write_to_log(f"[red]Error during dcraw check: {e}[/red]")
+            self.write_to_log(f"[red]Error during rawpy check: {e}[/red]")
         
         # NEW: Check BRISQUE engine availability (using pre-checked flags)
         self._check_brisque_engine()
@@ -853,10 +977,22 @@ class PhotoSortTUI(App):
         
         # Only rotate if workflow is active
         if self.workflow_start_time:
-            elapsed = time.time() - self.workflow_start_time
-            phrase = get_phrase_by_duration(elapsed, use_meta=True)
+            if self.app_config.get('pro_mode', False):
+                # PRO MODE: Professional, time-based status messages
+                elapsed = time.time() - self.workflow_start_time
+                minutes = int(elapsed // 60)
+                seconds = int(elapsed % 60)
+                if minutes > 0:
+                    phrase = f"Processing active... [{minutes}m {seconds}s elapsed]"
+                else:
+                    phrase = f"Processing active... [{seconds}s elapsed]"
+            else:
+                # STANDARD MODE: Warez phrases
+                elapsed = time.time() - self.workflow_start_time
+                phrase = get_phrase_by_duration(elapsed, use_meta=True)
         else:
-            phrase = "Ready to process"
+            # Ready state
+            phrase = "System Ready" if self.app_config.get('pro_mode', False) else "Ready to process"
         
         # Force refresh the widget
         self.progress_phrase.update(phrase)
@@ -1026,6 +1162,40 @@ class PhotoSortTUI(App):
         
         self.push_screen(ModelSelectScreen(current, available), handle_result)
     
+    def action_toggle_pro_mode(self) -> None:
+        """Toggle between Warez and Pro (Phantom Redline) aesthetics."""
+        if self.workflow_active:
+            self.write_to_log("[yellow]Cannot toggle pro mode while workflow is running[/yellow]")
+            return
+        
+        # Toggle the setting
+        current = self.app_config.get('pro_mode', False)
+        self.app_config['pro_mode'] = not current
+        
+        # Save to config
+        if ENGINE_AVAILABLE and save_app_config(self.app_config):
+            mode_name = "Pro Mode (Phantom Redline)" if not current else "Standard Mode (Warez)"
+            self.write_to_log(f"✓ Switched to: {mode_name}")
+            self.write_to_log(f"   [dim]Restart FIXXER to apply new theme[/dim]")
+        else:
+            self.write_to_log("[red]Failed to save pro_mode setting[/red]")
+    
+    # --- HUD Stats Callbacks ---
+    
+    def on_stats_update(self, key: str, value: Any) -> None:
+        """
+        Callback from engine (runs on background thread).
+        CRITICAL: Must use call_from_thread for thread safety!
+        """
+        self.call_from_thread(self._update_hud_ui, key, value)
+    
+    def _update_hud_ui(self, key: str, value: Any) -> None:
+        """
+        Thread-safe UI update (runs on main thread).
+        """
+        if self.milestone_hud:
+            self.milestone_hud.update_stat(key, value)
+    
     # --- Workflow Handling ---
     
     @on(Button.Pressed, ".workflow-btn")
@@ -1037,6 +1207,10 @@ class PhotoSortTUI(App):
         if not self.check_paths_configured():
             return
             
+        # Reset HUD before new run
+        if self.milestone_hud:
+            self.milestone_hud.reset()
+        
         self.toggle_workflow_buttons(disabled=True)
         
         if event.button.id == "btn-auto":
@@ -1121,9 +1295,16 @@ class PhotoSortTUI(App):
     def run_auto_workflow_thread(self) -> None:
         try:
             self.update_status("🚀 Running Auto...", {})
+            
+            # === CREATE STATS TRACKER WITH CALLBACK ===
+            from photosort_engine import StatsTracker
+            tracker = StatsTracker(callback=self.on_stats_update)
+            # ==========================================
+            
             result = auto_workflow(
                 log_callback=self.write_to_log,
-                app_config=self.app_config
+                app_config=self.app_config,
+                tracker=tracker
             )
             self.write_to_log("[bold green]✓ Auto workflow completed![/bold green]")
             self.update_status("✅ Auto Complete", result if isinstance(result, dict) else {})
@@ -1136,10 +1317,17 @@ class PhotoSortTUI(App):
     def run_burst_workflow_thread(self) -> None:
         try:
             self.update_status("📦 Grouping Bursts...", {})
+            
+            # === CREATE STATS TRACKER WITH CALLBACK ===
+            from photosort_engine import StatsTracker
+            tracker = StatsTracker(callback=self.on_stats_update)
+            # ==========================================
+            
             group_bursts_in_directory(
                 log_callback=self.write_to_log,
                 app_config=self.app_config,
-                simulated=False
+                simulated=False,
+                tracker=tracker
             )
             self.write_to_log("[bold green]✓ Burst grouping completed![/bold green]")
             self.update_status("✅ Bursts Complete", {})
@@ -1152,10 +1340,17 @@ class PhotoSortTUI(App):
     def run_cull_workflow_thread(self) -> None:
         try:
             self.update_status("✂️ Culling Images...", {})
+            
+            # === CREATE STATS TRACKER WITH CALLBACK ===
+            from photosort_engine import StatsTracker
+            tracker = StatsTracker(callback=self.on_stats_update)
+            # ==========================================
+            
             cull_images_in_directory(
                 log_callback=self.write_to_log,
                 app_config=self.app_config,
-                simulated=False
+                simulated=False,
+                tracker=tracker
             )
             self.write_to_log("[bold green]✓ Culling completed![/bold green]")
             self.update_status("✅ Cull Complete", {})

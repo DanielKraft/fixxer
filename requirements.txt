@@ -1,90 +1,139 @@
-# PhotoSort Dependencies
-# Install with: pip install -r requirements.txt
-
-# ============================================
-# Core Dependencies (CLI + TUI)
-# ============================================
-Pillow>=10.0.0              # Image processing
-requests>=2.31.0            # API calls to Ollama
-numpy>=1.24.0               # Numerical operations
-colorama>=0.4.6             # Terminal colors (CLI)
-exifread>=3.0.0             # EXIF metadata reading
-
-# ============================================
-# TUI Interface (v12.1+)
-# ============================================
-textual>=0.40.0             # Terminal User Interface framework
-rich>=13.0.0                # Rich text formatting (used by Textual)
-
-# ============================================
-# v8.0 Engines (Optional but Recommended)
-# ============================================
-# CLIP-based semantic burst detection
-sentence-transformers>=2.2.0
-scikit-learn>=1.3.0
-
-# BRISQUE quality assessment
-image-quality>=1.2.7        # Also known as 'imquality'
-opencv-python>=4.8.0
-
-# ============================================
-# Burst Detection (Legacy Fallback)
-# ============================================
-imagehash>=4.3.1            # pHash-based burst detection
-
-# ============================================
-# UI/Progress (CLI)
-# ============================================
-tqdm>=4.66.0                # Progress bars
-questionary>=2.0.0          # Interactive prompts
-
-# ============================================
-# EXIF and Metadata (System Dependencies)
-# ============================================
-# Note: PhotoSort uses exiftool (external command)
-# Install with: brew install exiftool (macOS)
-#           or: apt-get install libimage-exiftool-perl (Linux)
-
-# ============================================
-# RAW Format Support (System Dependencies)
-# ============================================
-# Note: PhotoSort uses dcraw (external command)
-# Install with: brew install dcraw (macOS)
-#           or: apt-get install dcraw (Linux)
-
-# ============================================
-# Configuration File Support
-# ============================================
-# configparser is built-in to Python 3.x (no install needed)
-
-# ============================================
-# Development Dependencies (Optional)
-# ============================================
-# Uncomment for development work:
-# pytest>=7.4.0             # Testing
-# black>=23.0.0             # Code formatting
-# flake8>=6.1.0             # Linting
-# mypy>=1.5.0               # Type checking
-
-# ============================================
-# Installation Notes
-# ============================================
-# 1. Create virtual environment (recommended):
-#    python3 -m venv venv
-#    source venv/bin/activate  (macOS/Linux)
-#    venv\Scripts\activate     (Windows)
+# FIXXER ✞ PRO - Requirements
+# Python 3.10+ required
+# 
+# Installation:
+#   pip install -r requirements.txt
 #
-# 2. Install dependencies:
-#    pip install -r requirements.txt
+# For full feature set (CLIP + BRISQUE):
+#   pip install -r requirements.txt
+#   pip install sentence-transformers scikit-learn image-quality
+
+# ==============================================================================
+# CORE DEPENDENCIES (Required)
+# ==============================================================================
+
+# --- TUI Framework ---
+textual>=0.47.0              # Modern terminal user interface
+rich>=13.7.0                 # Rich text and formatting in terminal
+
+# --- Image Processing ---
+Pillow>=10.0.0               # Python Imaging Library (PNG, JPEG handling)
+opencv-python>=4.8.0         # Computer vision (quality analysis, Laplacian)
+numpy>=1.24.0                # Numerical arrays (required by OpenCV)
+
+# --- RAW File Support ---
+rawpy>=0.19.0                # RAW image decoding (libraw wrapper)
+                             # Supports 120+ formats: RW2, CR2, NEF, ARW, etc.
+
+# --- Perceptual Hashing ---
+ImageHash>=4.3.1             # Burst detection via pHash (visual fingerprinting)
+
+# --- EXIF Metadata ---
+ExifRead>=3.0.0              # Extract camera info, timestamps, settings
+
+# --- HTTP Client ---
+requests>=2.31.0             # Ollama API communication
+
+# --- System Monitoring (Optional but recommended) ---
+psutil>=5.9.0                # CPU/RAM sparklines in TUI
+
+
+# ==============================================================================
+# OPTIONAL DEPENDENCIES (Enhanced Features)
+# ==============================================================================
+
+# --- Advanced Quality Assessment ---
+# image-quality>=1.2.7       # BRISQUE scoring (better than Laplacian fallback)
+                             # Uncomment to enable BRISQUE quality engine
+                             # Install: pip install image-quality
+
+# --- Advanced Burst Detection ---
+# sentence-transformers>=2.2.0   # CLIP embeddings (semantic similarity)
+# scikit-learn>=1.3.0            # DBSCAN clustering for burst grouping
+                                 # Uncomment for CLIP-based burst detection
+                                 # Install: pip install sentence-transformers scikit-learn
+                                 # Note: Downloads ~400MB CLIP model on first run
+
+
+# ==============================================================================
+# EXTERNAL DEPENDENCIES (Not pip-installable)
+# ==============================================================================
+
+# Ollama - Local LLM inference for AI vision features
+#   Installation: https://ollama.ai
+#   Models: ollama pull qwen2.5vl:3b
+#           ollama pull llava:latest
 #
-# 3. For macOS system Python (if not using venv):
-#    pip install -r requirements.txt --break-system-packages
+# Recommended model: qwen2.5vl:3b (fast, accurate, 2.2GB)
+
+
+# ==============================================================================
+# DEVELOPMENT DEPENDENCIES (Optional)
+# ==============================================================================
+
+# pytest>=7.4.0              # Testing framework
+# black>=23.0.0              # Code formatter
+# flake8>=6.0.0              # Linting
+# mypy>=1.5.0                # Type checking
+
+
+# ==============================================================================
+# PLATFORM NOTES
+# ==============================================================================
+
+# macOS:
+#   - All dependencies install cleanly via pip
+#   - Homebrew Python recommended: brew install python@3.11
 #
-# 4. Install system tools:
-#    macOS:  brew install exiftool dcraw
-#    Ubuntu: sudo apt-get install exiftool dcraw
-#    Fedora: sudo dnf install perl-Image-ExifTool dcraw
+# Linux (Ubuntu/Debian):
+#   - May need: sudo apt install python3-opencv libraw-dev
+#   - Virtual environment recommended
 #
-# 5. Install Ollama for AI features:
-#    https://ollama.com/download
-#    ollama pull qwen2.5vl:3b
+# Windows:
+#   - WSL (Windows Subsystem for Linux) strongly recommended
+#   - Native Windows: Install Visual C++ Build Tools for opencv-python
+#   - rawpy may require Microsoft Visual C++ 14.0+
+#
+# Docker:
+#   - Base image: python:3.11-slim
+#   - apt install: libgl1-mesa-glx libglib2.0-0 (for OpenCV)
+
+
+# ==============================================================================
+# VERSION CONSTRAINTS EXPLAINED
+# ==============================================================================
+
+# ">=" (greater than or equal):
+#   - Ensures minimum version for required features
+#   - Allows automatic security/bugfix updates
+#
+# Specific versions not pinned because:
+#   - FIXXER uses stable APIs (Pillow, OpenCV, NumPy)
+#   - Allows users to benefit from upstream improvements
+#   - No known breaking changes in major versions listed
+#
+# For production deployment with version locking:
+#   pip freeze > requirements-lock.txt
+
+
+# ==============================================================================
+# TROUBLESHOOTING
+# ==============================================================================
+
+# "ERROR: Could not build wheels for opencv-python"
+#   → Install system dependencies first (see Platform Notes above)
+#
+# "ImportError: libGL.so.1: cannot open shared object file"
+#   → Linux: sudo apt install libgl1-mesa-glx
+#
+# "rawpy.LibRawError" when processing RAW files
+#   → Ensure libraw-dev is installed (Linux/WSL)
+#
+# "ConnectionError: Could not connect to Ollama"
+#   → Start Ollama: ollama serve
+#   → Verify: curl http://localhost:11434/api/tags
+#
+# Out of memory when processing large RAW files
+#   → RAW processing uses in-memory buffers
+#   → Consider processing in smaller batches
+#   → Close other applications to free RAM

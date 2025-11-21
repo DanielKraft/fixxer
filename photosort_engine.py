@@ -1,34 +1,32 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-PhotoSort Engine (v10.8) - Cross-Platform RAW Conversion
+FIXXER ✞ Engine (v1.0) - Professional-Grade with Hash Verification
 
-This file now contains the REAL v9.3 workflow functions
-from the original photosort.py, refactored to be
-TUI-aware. All print()/tqdm calls are replaced with log_callback.
+NEW IN v1.0:
+- SHA256 hash verification for ALL file move operations
+- JSON sidecar files for audit trail (.fixxer.json)
+- Halt-on-mismatch integrity protection
+- "CHAOS PATCHED // LOGIC INJECTED"
 
-v10.8 CHANGES (Cross-Platform Migration):
+v10.8 (Cross-Platform Migration):
 - REMOVED macOS-only sips dependency completely
 - convert_raw_to_jpeg() now uses Pillow for PPM→JPEG conversion
 - 100% cross-platform (Linux, macOS, Windows with dcraw)
 - Zero temp files created (pure in-memory operation via BytesIO)
 - 5x smaller output files (689KB vs 3.7MB from sips)
-- Handles both direct JPEG thumbnails and PPM format seamlessly
 
 v10.7 FIXES:
-- convert_raw_to_jpeg() now tries embedded thumbnail first (-e flag)
+- convert_raw_to_jpeg() tries embedded thumbnail first (-e flag)
 - Falls back to full demosaic only if embedded thumbnail fails
 - Added timeouts to prevent hanging on problematic RAW files
-- Better error handling for session name generation
-
-v10.6 FIXES:
-- check_dcraw() now adds ALL common RAW formats (not just .rw2)
-- encode_image() and get_image_bytes_for_analysis() handle all RAW formats
 """
 
 from __future__ import annotations
 
 import os
 import json
+import hashlib  # NEW v1.0: SHA256 hash verification
 import base64
 import requests
 import shutil
@@ -170,6 +168,330 @@ TIER_C_FOLDER = "_Tier_C"
 
 
 # ==============================================================================
+# III.5 STATS TRACKER (FIXXER v10.0 - HUD SUPPORT)
+# ==============================================================================
+
+class StatsTracker:
+    """
+    Real-time statistics tracker for workflow progress.
+    Designed for thread-safe callback communication between engine and TUI.
+    
+    Usage:
+        tracker = StatsTracker(callback=my_callback_function)
+        tracker.start_timer()
+        tracker.update('bursts', 42)
+        tracker.stop_timer()
+    """
+    
+    def __init__(self, callback: Optional[Callable[[str, Any], None]] = None):
+        """
+        Args:
+            callback: Function to call when stats update (receives key, value)
+        """
+        self.callback = callback
+        self._stats = {
+            'bursts': 0,
+            'tier_a': 0,
+            'tier_b': 0,
+            'tier_c': 0,
+            'heroes': 0,
+            'archived': 0,
+            'time': '--'
+        }
+        self._start_time = None
+    
+    def update(self, key: str, value: Any) -> None:
+        """
+        Update a stat and trigger callback.
+        
+        Args:
+            key: Stat identifier (e.g., 'bursts', 'tier_a', 'archived')
+            value: New value for the stat
+        """
+        self._stats[key] = value
+        if self.callback:
+            self.callback(key, value)
+    
+    def start_timer(self) -> None:
+        """Start the workflow timer."""
+        self._start_time = datetime.now()
+        self.update('time', 'Running...')
+    
+    def stop_timer(self) -> None:
+        """Stop the timer and calculate human-readable duration."""
+        if self._start_time:
+            duration = datetime.now() - self._start_time
+            total_seconds = int(duration.total_seconds())
+            minutes = total_seconds // 60
+            seconds = total_seconds % 60
+            
+            # Format: "2m 34s" (human-readable for quick glances)
+            if minutes > 0:
+                time_str = f"{minutes}m {seconds}s"
+            else:
+                time_str = f"{seconds}s"
+            
+            self.update('time', time_str)
+    
+    def reset(self) -> None:
+        """Reset all stats to default values."""
+        for key in self._stats.keys():
+            if key == 'time':
+                self._stats[key] = '--'
+            else:
+                self._stats[key] = 0
+        self._start_time = None
+
+
+# ==============================================================================
+# IV. HASH VERIFICATION (FIXXER v1.0)
+# ==============================================================================
+
+def read_existing_sidecar(file_path: Path, log_callback: Callable[[str], None] = None) -> Optional[Dict[str, Any]]:
+    """
+    Read existing sidecar file if it exists at the source location.
+    
+    Args:
+        file_path: Path to the image file (sidecar will be <file_path>.fixxer.json)
+        log_callback: Optional logging function
+    
+    Returns:
+        Dictionary with sidecar data if found, None otherwise
+    """
+    try:
+        sidecar_path = file_path.parent / f"{file_path.name}.fixxer.json"
+        
+        if not sidecar_path.exists():
+            return None
+        
+        with open(sidecar_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data
+    
+    except Exception as e:
+        if log_callback:
+            log_callback(f"   [yellow]⚠️[/yellow] Could not read existing sidecar: {e}")
+        return None
+
+
+def calculate_sha256(file_path: Path, log_callback: Callable[[str], None] = None) -> Optional[str]:
+    """
+    Calculate SHA256 hash of a file.
+    
+    Args:
+        file_path: Path to file to hash
+        log_callback: Optional logging function
+    
+    Returns:
+        SHA256 hash as hex string, or None on error
+    """
+    try:
+        sha256_hash = hashlib.sha256()
+        
+        with open(file_path, "rb") as f:
+            # Read file in chunks to handle large files efficiently
+            for byte_block in iter(lambda: f.read(65536), b""):
+                sha256_hash.update(byte_block)
+        
+        return sha256_hash.hexdigest()
+    
+    except Exception as e:
+        if log_callback:
+            log_callback(f"   [red]✗[/red] Hash calculation failed: {e}")
+        return None
+
+
+def verify_file_move_with_hash(
+    source_path: Path,
+    destination_path: Path,
+    log_callback: Callable[[str], None] = None,
+    generate_sidecar: bool = True
+) -> Tuple[bool, Optional[str], Optional[str]]:
+    """
+    Move file with SHA256 integrity verification.
+    
+    Workflow:
+    1. Calculate hash of source file
+    2. Move file to destination
+    3. Calculate hash of destination file
+    4. Compare hashes
+    5. Optionally generate JSON sidecar
+    6. Return success status
+    
+    Args:
+        source_path: Source file path
+        destination_path: Destination file path
+        log_callback: Optional logging function
+        generate_sidecar: If True, create .fixxer.json sidecar file
+    
+    Returns:
+        Tuple of (success: bool, source_hash: str, dest_hash: str)
+        On failure, raises RuntimeError to halt workflow
+    """
+    def log(msg: str):
+        if log_callback:
+            log_callback(msg)
+    
+    try:
+        # Step 0: Read existing sidecar (if any) before moving
+        existing_sidecar = read_existing_sidecar(source_path, log_callback)
+        existing_history = []
+        if existing_sidecar and 'move_history' in existing_sidecar:
+            existing_history = existing_sidecar['move_history']
+        
+        # Step 1: Calculate source hash
+        log(f"   → Computing integrity hash...")
+        source_hash = calculate_sha256(source_path, log_callback)
+        
+        if not source_hash:
+            error_msg = f"Failed to calculate source hash for {source_path.name}"
+            log(f"   [red]✗[/red] {error_msg}")
+            raise RuntimeError(error_msg)
+        
+        # Show shortened hash in logs
+        short_hash = f"{source_hash[:16]}..."
+        log(f"   → SHA256: [cyan]{short_hash}[/cyan]")
+        
+        # Step 2: Move the file
+        log(f"   → Moving to {destination_path.parent.name}/")
+        shutil.move(str(source_path), str(destination_path))
+        
+        # Step 3: Calculate destination hash
+        log(f"   → Verifying integrity...")
+        dest_hash = calculate_sha256(destination_path, log_callback)
+        
+        if not dest_hash:
+            error_msg = f"Failed to calculate destination hash for {destination_path.name}"
+            log(f"   [red]✗[/red] {error_msg}")
+            raise RuntimeError(error_msg)
+        
+        # Step 4: Compare hashes
+        if source_hash == dest_hash:
+            log(f"   [green]✓[/green] Hash verified: MATCH")
+            
+            # Step 5: Generate sidecar if requested
+            if generate_sidecar:
+                sidecar_success = write_sidecar_file(
+                    destination_path,
+                    source_path,
+                    source_hash,
+                    verified=True,
+                    existing_history=existing_history,
+                    log_callback=log_callback
+                )
+                if not sidecar_success:
+                    log(f"   [yellow]⚠️[/yellow] Sidecar write failed (non-critical)")
+                
+                # Step 6: Clean up old sidecar at source location (if it existed)
+                if existing_sidecar:
+                    old_sidecar_path = source_path.parent / f"{source_path.name}.fixxer.json"
+                    try:
+                        if old_sidecar_path.exists():
+                            old_sidecar_path.unlink()
+                    except Exception as e:
+                        # Non-critical - just log the warning
+                        log(f"   [yellow]⚠️[/yellow] Could not remove old sidecar (non-critical): {e}")
+            
+            return True, source_hash, dest_hash
+        
+        else:
+            # CRITICAL: Hash mismatch detected - HALT WORKFLOW
+            log(f"   [red]✗ CRITICAL: Hash verified: MISMATCH[/red]")
+            log(f"   [red]✗ Source:      {source_hash[:32]}...[/red]")
+            log(f"   [red]✗ Destination: {dest_hash[:32]}...[/red]")
+            log(f"   [red]✗ FILE CORRUPTION DETECTED[/red]")
+            
+            # Write sidecar with corruption flag
+            if generate_sidecar:
+                write_sidecar_file(
+                    destination_path,
+                    source_path,
+                    source_hash,
+                    verified=False,
+                    dest_hash=dest_hash,
+                    existing_history=existing_history,
+                    log_callback=log_callback
+                )
+            
+            # HALT: Raise exception to stop workflow
+            error_msg = f"Hash mismatch detected for {destination_path.name} - workflow halted for safety"
+            raise RuntimeError(error_msg)
+    
+    except RuntimeError:
+        # Re-raise RuntimeError (our controlled halt)
+        raise
+    except Exception as e:
+        error_msg = f"File move failed: {e}"
+        log(f"   [red]✗[/red] {error_msg}")
+        raise RuntimeError(error_msg)
+
+
+def write_sidecar_file(
+    destination_path: Path,
+    original_path: Path,
+    source_hash: str,
+    verified: bool,
+    dest_hash: Optional[str] = None,
+    existing_history: Optional[List[Dict[str, str]]] = None,
+    log_callback: Callable[[str], None] = None
+) -> bool:
+    """
+    Write a JSON sidecar file with hash verification metadata and move history.
+    
+    Sidecar filename: <original_filename>.fixxer.json
+    Example: photo.jpg -> photo.jpg.fixxer.json
+    
+    Args:
+        destination_path: Where the file ended up
+        original_path: Where the file came from
+        source_hash: SHA256 of source
+        verified: True if hashes matched
+        dest_hash: Optional SHA256 of destination (for mismatch debugging)
+        existing_history: List of previous moves (from old sidecar)
+        log_callback: Optional logging function
+    
+    Returns:
+        True on success, False on error
+    """
+    try:
+        sidecar_path = destination_path.parent / f"{destination_path.name}.fixxer.json"
+        
+        # Build move history by appending current move to existing history
+        move_history = existing_history if existing_history else []
+        
+        current_move = {
+            "timestamp": datetime.now().isoformat(),
+            "from": str(original_path),
+            "to": str(destination_path),
+            "operation": "file_move"
+        }
+        move_history.append(current_move)
+        
+        metadata = {
+            "fixxer_version": "1.0",
+            "filename": destination_path.name,
+            "sha256_source": source_hash,
+            "verified": verified,
+            "move_history": move_history
+        }
+        
+        # Add destination hash if provided (for mismatch cases)
+        if dest_hash and dest_hash != source_hash:
+            metadata["sha256_destination"] = dest_hash
+            metadata["corruption_detected"] = True
+        
+        with open(sidecar_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2)
+        
+        return True
+    
+    except Exception as e:
+        if log_callback:
+            log_callback(f"   [yellow]⚠️[/yellow] Sidecar write error: {e}")
+        return False
+
+
+# ==============================================================================
 # V. CORE UTILITIES
 # ==============================================================================
 
@@ -177,25 +499,35 @@ def no_op_logger(message: str) -> None:
     """A dummy logger that does nothing, for when no callback is provided."""
     pass
 
-def check_dcraw(log_callback: Callable[[str], None] = no_op_logger):
-    """Check if dcraw is available and update RAW support"""
+def check_rawpy(log_callback: Callable[[str], None] = no_op_logger):
+    """Check if rawpy is available and update RAW support"""
     global RAW_SUPPORT
     global SUPPORTED_EXTENSIONS
     try:
-        result = subprocess.run(['which', 'dcraw'], capture_output=True, text=True)
-        if result.returncode == 0 and result.stdout.strip():
-            RAW_SUPPORT = True
-            # Add ALL common RAW formats that dcraw supports
-            raw_extensions = {'.rw2', '.arw', '.cr2', '.cr3', '.nef', '.dng', '.raf', '.orf', '.pef', '.srw'}
-            SUPPORTED_EXTENSIONS.update(raw_extensions)
-            log_callback(f"✓ [green]dcraw found.[/green] RAW support enabled.")
-            log_callback(f"  Added RAW formats: {', '.join(sorted(raw_extensions))}")
-        else:
-            RAW_SUPPORT = False
-            log_callback("✗ [yellow]dcraw not found.[/yellow] RAW support disabled.")
+        import rawpy
+        RAW_SUPPORT = True
+        # Add ALL common RAW formats that rawpy supports
+        # rawpy uses libraw which supports 100+ RAW formats
+        raw_extensions = {'.rw2', '.arw', '.cr2', '.cr3', '.nef', '.dng', '.raf', '.orf', '.pef', '.srw',
+                         '.3fr', '.ari', '.bay', '.crw', '.cs1', '.dc2', '.dcr', '.drf', '.eip', '.erf',
+                         '.fff', '.iiq', '.k25', '.kdc', '.mdc', '.mef', '.mos', '.mrw', '.nrw', '.obm',
+                         '.ptx', '.pxn', '.r3d', '.raw', '.rwl', '.rw1', '.rwz', '.sr2', '.srf', '.sti', '.x3f'}
+        SUPPORTED_EXTENSIONS.update(raw_extensions)
+        log_callback(f"✓ [green]rawpy found.[/green] RAW support enabled.")
+        log_callback(f"  Common formats: RW2, CR2, CR3, NEF, ARW, DNG, RAF, ORF, PEF, SRW + 40 more")
+    except ImportError:
+        RAW_SUPPORT = False
+        log_callback("✗ [yellow]rawpy not found.[/yellow] RAW support disabled.")
+        log_callback("  Install with: pip install rawpy")
     except Exception as e:
         RAW_SUPPORT = False
-        log_callback(f"✗ [red]dcraw check failed:[/red] {e}")
+        log_callback(f"✗ [red]rawpy check failed:[/red] {e}")
+
+# DEPRECATED: Use check_rawpy() instead
+def check_dcraw(log_callback: Callable[[str], None] = no_op_logger):
+    """DEPRECATED: dcraw is no longer used. Call check_rawpy() instead."""
+    log_callback("[yellow]Warning: check_dcraw() is deprecated. Using rawpy now.[/yellow]")
+    check_rawpy(log_callback)
 
 def get_available_models(log_callback: Callable[[str], None] = no_op_logger) -> Optional[List[str]]:
     """Get list of available Ollama models."""
@@ -217,82 +549,83 @@ def get_available_models(log_callback: Callable[[str], None] = no_op_logger) -> 
         return None
 
 def convert_raw_to_jpeg(raw_path: Path, log_callback: Callable[[str], None] = no_op_logger) -> Optional[bytes]:
-    """Convert RAW file to JPEG bytes using dcraw + Pillow.
+    """Convert RAW file to JPEG bytes using rawpy (Python-native, cross-platform).
     
-    Cross-platform Method 1: Embedded Thumbnail Extraction
-    - Uses dcraw -e -c to extract embedded JPEG thumbnail to stdout
-    - If output is JPEG (magic bytes 0xFFD8): returns directly
-    - If output is PPM: converts to JPEG via Pillow in-memory (no temp files)
-    - Falls back to full demosaic if embedded thumbnail fails
+    v10.0 Migration: rawpy replaces dcraw subprocess calls
     
-    Benefits vs sips:
-    - 100% cross-platform (Linux, macOS, Windows)
-    - No temp files created (pure memory operation)
-    - 5x smaller output (689KB vs 3.7MB)
+    Method 1: Embedded Thumbnail Extraction (Fast)
+    - Extracts embedded JPEG thumbnail using rawpy
+    - Typical size: 500-1000KB
+    - Quality: Perfect for CLIP embeddings and BRISQUE scoring
+    
+    Method 2: Quick Demosaic Fallback (Slower)
+    - Uses half-size demosaic for speed
+    - Only if thumbnail extraction fails
+    
+    Benefits vs dcraw:
+    - 100% Python-native (no subprocess, no system dependency)
+    - Faster (C++ library called directly)
+    - Supports 100+ RAW formats via libraw
+    - Cross-platform (Linux, macOS, Windows)
+    - No temp files (pure memory operation)
     """
     if not RAW_SUPPORT:
         return None
     
-    # Method 1: Extract embedded thumbnail (fast, cross-platform)
     try:
-        result = subprocess.run(
-            ['dcraw', '-e', '-c', str(raw_path)],
-            capture_output=True,
-            timeout=10
-        )
-        
-        if result.returncode == 0 and len(result.stdout) > 1000:
-            raw_bytes = result.stdout
-            
-            # Check if output is already JPEG (magic bytes: 0xFFD8)
-            if raw_bytes[:2] == b'\xff\xd8':
-                return raw_bytes
-            
-            # Otherwise it's PPM format - convert via Pillow in-memory
+        import rawpy
+    except ImportError:
+        log_callback(f"   [red]rawpy not available for RAW conversion[/red]")
+        return None
+    
+    # Method 1: Extract embedded thumbnail (fast, works for most modern cameras)
+    try:
+        with rawpy.imread(str(raw_path)) as raw:
+            # Try to extract embedded thumbnail
             try:
-                ppm_buffer = BytesIO(raw_bytes)
-                img = Image.open(ppm_buffer)
+                thumb = raw.extract_thumb()
+                if thumb.format == rawpy.ThumbFormat.JPEG:
+                    # Perfect! Camera provided JPEG thumbnail
+                    return thumb.data
+                elif thumb.format == rawpy.ThumbFormat.BITMAP:
+                    # Got a bitmap thumbnail, convert to JPEG via Pillow
+                    from PIL import Image
+                    img = Image.frombytes('RGB', (thumb.width, thumb.height), thumb.data)
+                    jpeg_buffer = BytesIO()
+                    img.save(jpeg_buffer, format='JPEG', quality=95)
+                    jpeg_buffer.seek(0)
+                    return jpeg_buffer.read()
+            except rawpy.LibRawNoThumbnailError:
+                # No embedded thumbnail, fall through to Method 2
+                pass
+            except Exception as thumb_error:
+                # Thumbnail extraction failed for some reason, fall through
+                log_callback(f"   [dim]Thumbnail extraction failed for {raw_path.name}, using demosaic[/dim]")
+            
+            # Method 2: Quick demosaic fallback (half-size for speed)
+            try:
+                rgb = raw.postprocess(
+                    use_camera_wb=True,    # Use camera white balance
+                    half_size=True,        # Half resolution for speed (still plenty for AI)
+                    no_auto_bright=True,   # Don't auto-brighten
+                    output_bps=8           # 8-bit output
+                )
                 
+                # Convert numpy array to JPEG via Pillow in-memory
+                from PIL import Image
+                img = Image.fromarray(rgb)
                 jpeg_buffer = BytesIO()
                 img.save(jpeg_buffer, format='JPEG', quality=95)
                 jpeg_buffer.seek(0)
-                
                 return jpeg_buffer.read()
-            except Exception as pil_error:
-                log_callback(f"   [yellow]Pillow conversion failed for {raw_path.name}: {pil_error}[/yellow]")
-                # Fall through to Method 2
                 
-    except subprocess.TimeoutExpired:
-        log_callback(f"   [yellow]Thumbnail extraction timed out for {raw_path.name}[/yellow]")
-    except Exception as e:
-        # Silently fall through to method 2
-        pass
+            except Exception as demosaic_error:
+                log_callback(f"   [red]Demosaic failed for {raw_path.name}:[/red] {demosaic_error}")
+                return None
     
-    # Method 2: Full demosaic fallback (slower, but works when no embedded thumbnail)
-    try:
-        result = subprocess.run(
-            ['dcraw', '-c', '-w', '-q', '3', str(raw_path)],
-            capture_output=True,
-            check=True,
-            timeout=30
-        )
-        
-        # Convert PPM output to JPEG via Pillow in-memory
-        ppm_buffer = BytesIO(result.stdout)
-        img = Image.open(ppm_buffer)
-        
-        jpeg_buffer = BytesIO()
-        img.save(jpeg_buffer, format='JPEG', quality=95)
-        jpeg_buffer.seek(0)
-        
-        return jpeg_buffer.read()
-    
-    except subprocess.TimeoutExpired:
-        log_callback(f"   [red]Error converting RAW file {raw_path.name}:[/red] Timeout")
     except Exception as e:
         log_callback(f"   [red]Error converting RAW file {raw_path.name}:[/red] {e}")
-    
-    return None
+        return None
 
 def encode_image(image_path: Path, log_callback: Callable[[str], None] = no_op_logger) -> Optional[str]:
     """Convert image to base64 string, handling RAW files"""
@@ -473,6 +806,11 @@ def load_app_config() -> Dict[str, Any]:
     config['ai_session_naming'] = parser.getboolean(
         'folders', 'ai_session_naming', fallback=True
     )
+    
+    # v10.0: Pro Mode toggle (Phantom Redline aesthetic)
+    config['pro_mode'] = parser.getboolean(
+        'behavior', 'pro_mode', fallback=False
+    )
 
     return config
 
@@ -506,6 +844,10 @@ def save_app_config(config: Dict[str, Any]) -> bool:
     
     if 'default_model' in config and config['default_model']:
         parser.set('ingest', 'default_model', str(config['default_model']))
+    
+    # v10.0: Save pro_mode toggle
+    if 'pro_mode' in config:
+        parser.set('behavior', 'pro_mode', 'true' if config['pro_mode'] else 'false')
     
     try:
         with open(CONFIG_FILE_PATH, 'w') as f:
@@ -746,7 +1088,8 @@ def process_single_image(
             clean_base = base_name[:-5] if base_name.endswith('_PICK') else base_name
             new_path = get_unique_filename(clean_base, extension, destination_base)
             
-            shutil.move(str(image_path), str(new_path))
+            # FIXXER v1.0: Hash-verified move
+            verify_file_move_with_hash(image_path, new_path, log_callback, generate_sidecar=True)
             if rename_log_path:
                 write_rename_log(rename_log_path, image_path.name, new_path.name, destination_base)
             description_for_categorization = clean_base.replace('-', ' ')
@@ -761,7 +1104,8 @@ def process_single_image(
         extension = image_path.suffix.lower()
         new_path = get_unique_filename(clean_name, extension, destination_base)
         
-        shutil.move(str(image_path), str(new_path))
+        # FIXXER v1.0: Hash-verified move
+        verify_file_move_with_hash(image_path, new_path, log_callback, generate_sidecar=True)
         if rename_log_path:
             write_rename_log(rename_log_path, image_path.name, new_path.name, destination_base)
         
@@ -798,7 +1142,9 @@ def organize_into_folders(
             src = files_source / file_info['filename']
             dst = folder_path / file_info['filename']
             if src.exists():
-                shutil.move(str(src), str(dst))
+                # FIXXER v1.0: Hash-verified move
+                log_callback(f"     Processing {src.name}...")
+                verify_file_move_with_hash(src, dst, log_callback, generate_sidecar=True)
             else:
                 log_callback(f"     [yellow]Warning: Source file not found, may already be moved: {src.name}[/yellow]")
     
@@ -1058,7 +1404,8 @@ def simple_sort_workflow(
 
 def auto_workflow(
     log_callback: Callable[[str], None] = no_op_logger,
-    app_config: Optional[Dict[str, Any]] = None
+    app_config: Optional[Dict[str, Any]] = None,
+    tracker: Optional[StatsTracker] = None
 ) -> Dict[str, Any]:
     """(V9.3) Complete automated workflow: Stack → Cull → AI-Name → Archive."""
     
@@ -1098,12 +1445,16 @@ def auto_workflow(
         log_callback("   Please run: pip install imagehash opencv-python numpy exifread")
         return {}
     
-    tracker = SessionTracker()
-    tracker.set_model(chosen_model)
-    tracker.add_operation("Burst Stacking")
-    tracker.add_operation("Quality Culling")
-    tracker.add_operation("AI Naming")
-    check_dcraw(log_callback)
+    session_tracker = SessionTracker()
+    session_tracker.set_model(chosen_model)
+    session_tracker.add_operation("Burst Stacking")
+    session_tracker.add_operation("Quality Culling")
+    session_tracker.add_operation("AI Naming")
+    # check_dcraw removed - we use rawpy now (Python-native RAW support)
+    
+    # Start HUD timer
+    if tracker:
+        tracker.start_timer()
     
     # --- 2. STATS PREVIEW ---
     log_callback("\n[bold]Step 2/5: Analyzing session (read-only)...[/bold]")
@@ -1114,11 +1465,11 @@ def auto_workflow(
 
     # --- 3. GROUP BURSTS ---
     log_callback("\n[bold]Step 3/5: Stacking burst shots (with AI naming)...[/bold]")
-    group_bursts_in_directory(log_callback, app_config, directory_override=directory)
+    group_bursts_in_directory(log_callback, app_config, directory_override=directory, tracker=tracker)
 
     # --- 4. CULL SINGLES ---
     log_callback("\n[bold]Step 4/5: Culling single shots...[/bold]")
-    cull_images_in_directory(log_callback, app_config, directory_override=directory)
+    cull_images_in_directory(log_callback, app_config, directory_override=directory, tracker=tracker)
     tier_a_dir = directory / TIER_A_FOLDER
     
     # --- 5. FIND & ARCHIVE HEROES ---
@@ -1153,6 +1504,10 @@ def auto_workflow(
         log_callback(f"     • {len(already_named)} already AI-named (from burst stacking)")
     log_callback(f"     • {len(needs_naming)} to process")
     
+    # Update HUD: Heroes count
+    if tracker:
+        tracker.update('heroes', len(hero_files))
+    
     results = {"success": [], "failed": []}
     rename_log_path = chosen_destination / f"_ai_rename_log_{SESSION_TIMESTAMP}.txt"
     initialize_rename_log(rename_log_path)
@@ -1179,6 +1534,10 @@ def auto_workflow(
     
     log_callback(f"\n[green]✓ Successfully archived: {len(results['success'])}[/green]")
     log_callback(f"[red]✗ Failed to archive: {len(results['failed'])}[/red]")
+    
+    # Update HUD: Archived count
+    if tracker:
+        tracker.update('archived', len(results['success']))
     
     summary = {
         "archived": len(results['success']),
@@ -1228,11 +1587,15 @@ def auto_workflow(
         
         final_destination = chosen_destination / dated_folder
         final_destination.mkdir(parents=True, exist_ok=True)
-        tracker.set_destination(final_destination)
+        session_tracker.set_destination(final_destination)
         
         organize_into_folders(results["success"], chosen_destination, final_destination, log_callback)
         summary["final_destination"] = str(final_destination.name)
         summary["categories"] = len(categories)
+
+    # Stop HUD timer
+    if tracker:
+        tracker.stop_timer()
 
     log_callback("\n[bold green]🚀 AUTO WORKFLOW COMPLETE[/bold green]")
     log_callback(f"   Your 'hero' photos are now in: {chosen_destination}")
@@ -1246,7 +1609,8 @@ def group_bursts_in_directory(
     log_callback: Callable[[str], None] = no_op_logger,
     app_config: Optional[Dict[str, Any]] = None,
     simulated: bool = False,
-    directory_override: Optional[Path] = None
+    directory_override: Optional[Path] = None,
+    tracker: Optional[StatsTracker] = None
 ) -> None:
     """(V9.3) Finds and stacks burst groups, AI-naming the best pick."""
     
@@ -1319,6 +1683,10 @@ def group_bursts_in_directory(
         
     log_callback(f"   [green]✓ Found {len(all_burst_groups)} burst groups.[/green] Analyzing for best pick...")
     
+    # Update HUD: Bursts count
+    if tracker:
+        tracker.update('bursts', len(all_burst_groups))
+    
     best_picks: Dict[int, Tuple[Path, float]] = {}
     for i, group in enumerate(all_burst_groups):
         best_sharpness = -1.0
@@ -1383,7 +1751,8 @@ def group_bursts_in_directory(
             
             new_file_path = folder_path / new_name
             try:
-                shutil.move(str(file_path), str(new_file_path))
+                # FIXXER v1.0: Hash-verified move
+                verify_file_move_with_hash(file_path, new_file_path, log_callback, generate_sidecar=True)
                 write_rename_log(rename_log_path, file_path.name, new_name, folder_path)
             except Exception as e:
                 log_callback(f"     [red]FAILED to move {file_path.name}: {e}[/red]")
@@ -1396,7 +1765,8 @@ def cull_images_in_directory(
     log_callback: Callable[[str], None] = no_op_logger,
     app_config: Optional[Dict[str, Any]] = None,
     simulated: bool = False,
-    directory_override: Optional[Path] = None
+    directory_override: Optional[Path] = None,
+    tracker: Optional[StatsTracker] = None
 ) -> None:
     """(V9.3) Finds and groups images by technical quality using Tier A/B/C naming."""
     
@@ -1465,6 +1835,12 @@ def cull_images_in_directory(
 
     log_callback(f"   [green]Found {len(tiers['Tier_A'])} Tier A[/green], [yellow]{len(tiers['Tier_B'])} Tier B[/yellow], [red]{len(tiers['Tier_C'])} Tier C[/red].")
     
+    # Update HUD: Tier A/B/C counts
+    if tracker:
+        tracker.update('tier_a', len(tiers['Tier_A']))
+        tracker.update('tier_b', len(tiers['Tier_B']))
+        tracker.update('tier_c', len(tiers['Tier_C']))
+    
     folder_map = {
         "Tier_A": directory / TIER_A_FOLDER,
         "Tier_B": directory / TIER_B_FOLDER,
@@ -1480,7 +1856,8 @@ def cull_images_in_directory(
         for file_path in paths:
             new_file_path = folder_path / file_path.name
             try:
-                shutil.move(str(file_path), str(new_file_path))
+                # FIXXER v1.0: Hash-verified move
+                verify_file_move_with_hash(file_path, new_file_path, log_callback, generate_sidecar=True)
             except Exception as e:
                 log_callback(f"     [red]FAILED to move {file_path.name}: {e}[/red]")
 

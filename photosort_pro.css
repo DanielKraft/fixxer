@@ -1,0 +1,504 @@
+/* ==============================================================================
+ * FIXXER ✞ PRO MODE CSS (Phantom Redline Edition)
+ * "TACTICAL PRECISION"
+ * ============================================================================== */
+
+/* PALETTE: PHANTOM OPS 
+ * Background: Pure Void Black (#000000)
+ * Surface: Near Black (#111111)
+ * Text: Muted Grey (#888888)
+ * Accent: Pure White (#FFFFFF)
+ * Redline: Automotive Red (#FF3333) - Used for critical stats/active states
+ */
+
+$background: #000000;
+$surface: #111111;
+$primary: #FFFFFF;    /* Stark White for Borders/Focus */
+$text: #888888;       /* Muted text for low eye strain */
+$redline: #FF3333;    /* The "Redline" Accent */
+
+Screen {
+    background: $background;
+    color: $text;
+    border: solid $surface;
+}
+
+/* ==============================================================================
+ * Header & Branding
+ * ============================================================================== */
+
+#header-row {
+    height: auto;
+    width: 100%;
+    align: left middle;
+    border-bottom: solid $surface;
+    padding-bottom: 1;
+    margin-bottom: 1;
+}
+
+#logo {
+    width: 1fr;
+    height: auto;
+    text-align: left;
+    color: $primary;
+    text-style: bold;
+    padding: 1 2;
+}
+
+/* "Easy Archive" button */
+.easy-btn {
+    width: auto;
+    height: auto;
+    min-width: 16;
+    margin: 1 2 1 0;
+    background: $background;
+    color: $text;
+    border: solid $surface;
+}
+
+.easy-btn:hover {
+    background: $surface;
+    color: $primary;
+    border: solid $primary;
+}
+
+/* ==============================================================================
+ * Layout Panels
+ * ============================================================================== */
+
+.panel-title {
+    height: auto;
+    padding-bottom: 1;
+    color: $primary;
+    text-style: bold;
+    background: $surface;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+#left-panel {
+    padding-right: 1;
+    width: 35%;  /* Narrower for portrait orientation */
+}
+
+#right-panel {
+    padding-left: 1;
+    width: 65%;  /* Wider for landscape orientation */
+}
+
+/* ==============================================================================
+ * Widgets
+ * ============================================================================== */
+
+Button {
+    outline: none;
+}
+
+Button:focus {
+    border: solid $primary;
+}
+
+/* --- Scrollbar Styling (Muted) --- */
+Scrollbar {
+    background: $surface;
+    color: $text;
+}
+
+Scrollbar:hover {
+    color: $primary;
+}
+
+Scrollbar.-active {
+    color: $primary;
+}
+
+/* ==============================================================================
+ * File Browser (The "Directory" Look)
+ * ============================================================================== */
+
+#file-browser-container {
+    height: 1fr;
+    background: $background;
+    border: solid $surface;
+    padding: 1;
+}
+
+DirectoryTree {
+    background: $background;
+    color: $text;
+}
+
+.directory-tree--guides {
+    color: $surface;
+}
+
+.directory-tree--selected {
+    background: $surface !important;
+    color: $primary !important;
+    text-style: bold;
+    border-left: solid $redline;  /* The Redline touch */
+}
+
+/* ==============================================================================
+ * Telemetry & Status (The "Dashboard" Look)
+ * ============================================================================== */
+
+#status-bar {
+    height: auto;
+    margin-bottom: 1;
+    padding: 0 1;
+    background: $surface;
+    border-left: solid $primary;
+    color: $primary;
+}
+
+/* SYSTEM MONITOR - The Redline Feature */
+#system-monitor {
+    height: auto;
+    margin-bottom: 1;
+    padding: 1 2;
+    align: center middle;
+    background: $background;
+    border: solid $surface;
+}
+
+#sysmon-row-1,
+#sysmon-row-2 {
+    height: auto;
+    width: 100%;
+    align: left middle;
+    padding: 0;
+}
+
+.sysmon-label {
+    width: 6;
+    color: $text;
+    text-style: bold;
+}
+
+.sysmon-sparkline {
+    width: 1fr;
+    height: 3;
+    margin: 0 1;
+}
+
+.sysmon-value {
+    width: 5;
+    text-align: right;
+    color: $primary;
+    text-style: bold;
+}
+
+#sysmon-error {
+    color: $surface;
+    text-align: center;
+}
+
+/* The Sparklines - THIS IS THE REDLINE */
+#ram-sparkline {
+    color: $redline !important;  /* Force red override */
+}
+
+#cpu-sparkline {
+    color: $redline !important;  /* Force red override */
+}
+
+/* ==============================================================================
+ * Logs & Progress
+ * ============================================================================== */
+
+#log-panel {
+    height: 1fr;
+    min-height: 15;
+    max-height: 1fr;
+}
+
+#log-container {
+    height: 1fr;
+    background: $background;
+    padding: 0 1;
+    border: solid $surface;
+    color: $text;
+}
+
+/* Spinner Area */
+#progress-container {
+    height: auto;
+    width: 100%;
+    padding: 0 1;
+    background: $surface;
+    margin-bottom: 1;
+    border: solid $surface;
+    border-left: solid $redline;  /* Active status indicator */
+}
+
+#progress-container Horizontal {
+    height: auto;
+    width: 100%;
+}
+
+#spinner-display {
+    height: auto;
+    padding-bottom: 0;
+    text-align: center;
+    color: $redline;
+    text-style: bold;
+}
+
+#progress-phrase {
+    height: auto;
+    padding-top: 0;
+    color: $primary;
+    width: 1fr;
+}
+
+#progress-timer {
+    height: auto;
+    color: $text;
+    text-align: right;
+    width: auto;
+}
+
+/* ==============================================================================
+ * Buttons (Tactical Controls)
+ * ============================================================================== */
+
+#button-bar {
+    height: auto;
+    width: 100%;
+    align: center middle;
+    padding: 1 0;
+}
+
+.workflow-btn,
+.path-btn {
+    margin: 0 1;
+    width: 1fr;
+    background: $surface;
+    color: $text;
+    border: solid $surface;
+}
+
+.workflow-btn:hover,
+.path-btn:hover {
+    background: $primary;
+    color: $background;
+    text-style: bold;
+    border: solid $primary;
+}
+
+/* "QUIT" Button - The Emergency Stop */
+#btn-quit {
+    background: $surface;
+    color: $redline;
+    text-style: bold;
+    border: solid $surface;
+}
+
+#btn-quit:hover {
+    background: $redline;
+    color: $primary;
+    border: solid $redline;
+}
+/* ==============================================================================
+ * FIXXER PRO MODE - MILESTONE HUD CSS
+ * "TACTICAL DASHBOARD EXTENSION"
+ * ============================================================================== */
+
+/*
+ * INSTALLATION INSTRUCTIONS:
+ * Add this entire section to the END of photosort_pro.css
+ */
+
+/* ==============================================================================
+ * MILESTONE HUD (Heads Up Display)
+ * ============================================================================== */
+
+#milestone-hud {
+    height: auto;
+    width: 100%;             /* Fill the panel width */
+    align: center middle;    /* Center the widget group */
+    padding: 0 1;            /* Small padding on sides */
+    margin-bottom: 1;        /* Space before System Monitor */
+}
+
+#hud-layout {
+    height: auto;
+    width: auto;
+    align: center middle;    /* Center the group of boxes */
+}
+
+/* === STAT BOX CONTAINERS === */
+.hud-box {
+    width: 13;               /* Compact width for tight layout */
+    height: auto;
+    min-height: 4;           /* Just enough for label + value */
+    margin-left: 1;          /* Spacing between boxes */
+    background: $background; /* Pure black #000000 */
+    border: solid $surface;  /* Subtle border (#111111) - barely visible */
+    align: center middle;
+    padding: 0 1;
+}
+
+/* Subtle hover effect - barely visible border highlight */
+.hud-box:hover {
+    border: solid #1a1a1a;   /* Slightly lighter than surface */
+}
+
+/* === LABELS (Top text in each box) === */
+.hud-label {
+    width: 100%;
+    height: auto;
+    text-align: center;
+    color: $text;            /* Muted grey #888888 */
+    text-style: bold;
+    padding-bottom: 0;
+    padding-top: 0;
+}
+
+/* === VALUES (Bottom numbers in each box) === */
+.hud-value {
+    width: 100%;
+    height: auto;
+    text-align: center;
+    color: $primary;         /* White #FFFFFF */
+    text-style: bold;
+    padding-top: 0;
+}
+
+/* === TIER A/B/C MULTI-VALUE LAYOUT === */
+.hud-multi-val {
+    width: auto;
+    height: auto;
+    align: center middle;
+    padding-top: 0;
+}
+
+/* Color-coded tier values */
+.hud-val-a {
+    width: auto;
+    min-width: 3;            /* Minimum width for alignment */
+    text-align: center;
+    color: $primary;         /* White - best quality */
+    text-style: bold;
+}
+
+.hud-val-b {
+    width: auto;
+    min-width: 3;            /* Minimum width for alignment */
+    text-align: center;
+    color: $text;            /* Grey - medium quality */
+    text-style: bold;
+}
+
+.hud-val-c {
+    width: auto;
+    min-width: 3;            /* Minimum width for alignment */
+    text-align: center;
+    color: $redline;         /* Red #FF3333 - needs attention */
+    text-style: bold;
+}
+
+/* Separator slashes between tier values */
+.hud-sep {
+    width: auto;
+    color: $surface;         /* Nearly invisible #111111 */
+    padding: 0;
+    margin: 0 1;
+}
+
+/* === INDIVIDUAL BOX CUSTOMIZATION === */
+
+/* Bursts box - no special styling needed */
+#hud-bursts {
+    /* Inherits from .hud-box */
+}
+
+/* Tiers box - wider to fit A/B/C layout */
+#hud-tiers {
+    width: 20;               /* Wider for proper alignment of letters and numbers */
+}
+
+/* Heroes box - no special styling needed */
+#hud-heroes {
+    /* Inherits from .hud-box */
+}
+
+/* Archived box - no special styling needed */
+#hud-archived {
+    /* Inherits from .hud-box */
+}
+
+/* Time box - no special styling needed */
+#hud-time {
+    /* Inherits from .hud-box */
+}
+
+/* ==============================================================================
+ * DESIGN NOTES
+ * ============================================================================== */
+
+/*
+ * SUBTLE BORDER PHILOSOPHY:
+ * - Borders use $surface (#111111) which is barely visible against $background (#000000)
+ * - This creates a "ghost box" effect - present but not obtrusive
+ * - On hover, boxes brighten slightly to #1a1a1a (still very subtle)
+ * - The goal is information density without visual clutter
+ *
+ * COLOR HIERARCHY:
+ * - Labels: Muted grey ($text #888888) - recedes into background
+ * - Values: White ($primary #FFFFFF) - crisp, readable
+ * - Tier A: White (excellence)
+ * - Tier B: Grey (acceptable)
+ * - Tier C: Red ($redline #FF3333) (requires attention)
+ *
+ * SPACING:
+ * - Tight margins (1 unit between boxes)
+ * - Minimal padding (0-1 units)
+ * - Compact height (4 units) - maximizes vertical space
+ * - Right-aligned to stay near Easy Archive button
+ *
+ * TACTICAL AESTHETIC:
+ * - Clean, functional, no decoration
+ * - Information at a glance
+ * - Professional, not playful
+ * - Complements the "TACTICAL PRECISION" tagline
+ */
+
+/* ==============================================================================
+ * TESTING CHECKLIST
+ * ============================================================================== */
+
+/*
+ * After adding this CSS:
+ * 
+ * ✅ Toggle Pro Mode (F12 in FIXXER)
+ * ✅ Restart application
+ * ✅ Check header layout (HUD should appear between logo and Easy Archive)
+ * ✅ Verify boxes show "--" when idle
+ * ✅ Run Auto Workflow
+ * ✅ Watch boxes update in real-time:
+ *    - BURSTS updates after burst detection
+ *    - TIER A/B/C updates after culling
+ *    - HEROES updates when files are selected
+ *    - ARCHIVED updates when archiving completes
+ *    - TIME shows "Running..." then "2m 34s" format
+ * ✅ Verify borders are subtle (barely visible)
+ * ✅ Verify tier colors (A=white, B=grey, C=red)
+ * ✅ Test hover effect (slight border highlight)
+ * 
+ * If boxes are too wide:
+ * - Reduce .hud-box width from 13 to 12 or 11
+ * 
+ * If borders are too visible:
+ * - Change border color to $background (pure black)
+ * - Or use "border: none;" for invisible borders
+ * 
+ * If text is too small:
+ * - Cannot increase font size in Textual directly
+ * - Consider adding more padding or using different units
+ */
+
+/* ==============================================================================
+ * END OF HUD CSS
+ * ============================================================================== */
