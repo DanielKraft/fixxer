@@ -827,6 +827,12 @@ class FixxerTUI(App):
         # No Footer
     
     def on_mount(self) -> None:
+        # Set terminal window title using ANSI escape sequence
+        # Works with most terminal emulators (xterm, iTerm2, Terminal.app, etc.)
+        import sys
+        sys.stdout.write("\033]0;FIXXER\007")
+        sys.stdout.flush()
+
         self.write_to_log("[bold red]VisionCrew Fixxer v1.0.0[/bold red] - System Online")
         self.write_to_log("[dim]────────────────────────────────────────────[/dim]")
         
