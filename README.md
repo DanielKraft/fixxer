@@ -2,7 +2,7 @@
 ### Professional-Grade Photography Workflow Automation
 
 ![Version](https://img.shields.io/badge/version-1.0-red.svg)
-![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
+![Python](https://img.shields.io/badge/python-3.10--3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 **"CHAOS PATCHED // LOGIC INJECTED"**
@@ -30,6 +30,7 @@ Built for photographers who demand both **speed** and **safety** in their digita
 - **Semantic burst detection** with CLIP embeddings
 - **AI session naming** from visual analysis
 - **Creative critique mode** for artistic feedback
+- **Dry-run preview mode** with intelligent AI caching (50%+ speed boost on execution)
 
 ### 📊 **Quality Analysis Pipeline**
 - **BRISQUE quality scoring** for sharpness assessment
@@ -57,7 +58,7 @@ Built for photographers who demand both **speed** and **safety** in their digita
 **Zero friction. Full power.**
 
 ### Prerequisites
-- **Python 3.10+**
+- **Python 3.10-3.12** (Note: Python 3.13+ is not currently supported due to dependency constraints)
 - **Ollama** (for AI vision features) - [https://ollama.ai](https://ollama.ai)
 - Supported OS: macOS, Linux, Windows (WSL recommended)
 
@@ -176,6 +177,7 @@ FIXXER is fully keyboard-driven. All buttons have hotkeys:
 ### Navigation & Setup
 - **1** - Set Source directory (from file browser selection)
 - **2** - Set Destination directory (opens selector)
+- **D** - Dry Run (preview workflow without moving files)
 - **M** - Select Ollama Model
 - **F12** - Toggle Pro Mode (Warez ↔ Phantom Redline)
 
@@ -193,6 +195,42 @@ FIXXER is fully keyboard-driven. All buttons have hotkeys:
 - **Ctrl+C** - Force quit
 
 **Tip:** Hover over any button to see its keyboard shortcut in the tooltip!
+
+---
+
+## 🔍 Dry Run Preview Mode
+
+**Try before you commit.** The dry-run feature lets you preview any workflow without moving a single file.
+
+### How It Works
+
+1. Press **D** to open the dry-run modal
+2. Select which workflow to preview: **Auto**, **Burst**, or **Cull**
+3. FIXXER simulates the entire workflow:
+   - Calculates all file operations
+   - Generates AI names (cached for later)
+   - Shows collision-aware filename resolution
+   - Displays full preview log with "WOULD MOVE:" entries
+4. Review the preview log - **zero files moved**
+5. Choose what to do next:
+   - **Execute Now** - Run the real workflow using cached AI results (50%+ faster)
+   - **Forget & Redo** - Clear cache and start fresh
+
+### Key Features
+
+- **Zero footprint** - No folders created, no files moved, no logs written
+- **Intelligent AI caching** - AI results cached with model-aware keys and mtime validation
+- **Thread-safe** - Cache safely shared across concurrent operations
+- **10-minute TTL** - Cache expires after 10 minutes for freshness
+- **Collision-aware** - Preview shows exact final filenames including duplicates
+- **Full workflow simulation** - Burst grouping, quality culling, AI naming - everything runs in preview mode
+
+### Why Use It?
+
+- **Verify AI names** before committing to file operations
+- **Check collision handling** when duplicate names would occur
+- **Test workflow settings** without risk
+- **Speed up execution** with cached AI results (no re-inference needed)
 
 ---
 
