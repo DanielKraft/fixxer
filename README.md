@@ -6,6 +6,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 **"CHAOS PATCHED // LOGIC INJECTED"**
+![warez_dry_run_sped_up_original30](https://github.com/user-attachments/assets/daba32a1-7797-4b2c-9f4b-99866e9b6007)
 
 ---
 
