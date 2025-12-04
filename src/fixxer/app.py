@@ -13,6 +13,7 @@ FIXXER ✞ TUI (v1.0) - Professional-Grade Edition
 
 from __future__ import annotations
 
+import importlib.resources
 import threading
 import time
 from pathlib import Path
@@ -40,7 +41,7 @@ except ImportError:
 
 # Import phrases
 try:
-    from phrases import get_phrase_by_duration, get_model_loading_phrase, get_quit_message
+    from .phrases import get_phrase_by_duration, get_model_loading_phrase, get_quit_message
     PHRASES_AVAILABLE = True
 except ImportError:
     PHRASES_AVAILABLE = False
@@ -53,7 +54,7 @@ except ImportError:
 
 # Import the engine functions
 try:
-    from fixxer_engine import (
+    from .engine import (
         auto_workflow,
         simple_sort_workflow,  # NEW: Simple legacy mode workflow
         group_bursts_in_directory,
@@ -759,15 +760,17 @@ class FixxerTUI(App):
         # Load config FIRST to determine CSS
         temp_config = load_app_config()
         pro_mode = temp_config.get('pro_mode', False)
-        
-        # Load appropriate CSS file
-        css_file = "fixxer_pro.css" if pro_mode else "fixxer_warez.css"
+
+        # Load appropriate CSS file using importlib.resources
+        from . import themes
+        css_filename = "pro.css" if pro_mode else "warez.css"
         try:
-            with open(css_file, 'r') as f:
+            ref = importlib.resources.files(themes) / css_filename
+            with ref.open("r", encoding="utf-8") as f:
                 FixxerTUI.CSS = f.read()
-        except FileNotFoundError:
+        except Exception as e:
             # Fallback to default if file not found
-            print(f"Warning: Could not find {css_file}, using default styling")
+            print(f"Warning: Could not load theme {css_filename}: {e}")
             FixxerTUI.CSS = ""
         
         super().__init__(**kwargs)
@@ -818,11 +821,7 @@ class FixxerTUI(App):
 [bold white]██      ██[/bold white]   [bold white] ██ ██   ██ ██ [/bold white]   [bold red]██      ██   ██[/bold red]     [bold red]██[/bold red]
 [bold white]██      ██[/bold white]   [bold white]██   ██ ██   ██[/bold white]   [bold red]███████ ██   ██[/bold red]     [bold red]██[/bold red]
 
-[dim white]▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀[/dim white]
-[dim white]▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄[/dim white]
-
-[bold red]CHAOS PATCHED // LOGIC INJECTED[/bold red]
-[dim white]INTEGRITY VERIFIED | FILE OPERATIONS SECURED[/dim white]"""
+[bold red]CHAOS PATCHED // LOGIC INJECTED[/bold red]"""
         
         return logo
 
@@ -1375,7 +1374,7 @@ class FixxerTUI(App):
         available = None
         if ENGINE_AVAILABLE:
             try:
-                from fixxer_engine import get_available_models
+                from .engine import get_available_models
                 models = get_available_models(self.write_to_log)
                 if models:
                     available = models
@@ -1665,7 +1664,7 @@ class FixxerTUI(App):
             self.update_status("🚀 Running Auto...", {})
 
             # === CREATE STATS TRACKER WITH CALLBACK ===
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
             # ==========================================
 
@@ -1699,7 +1698,7 @@ class FixxerTUI(App):
             self.update_status("📦 Grouping Bursts...", {})
             
             # === CREATE STATS TRACKER WITH CALLBACK ===
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
             # ==========================================
             
@@ -1724,7 +1723,7 @@ class FixxerTUI(App):
             self.update_status("✂️ Culling Images...", {})
             
             # === CREATE STATS TRACKER WITH CALLBACK ===
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
             # ==========================================
             
@@ -1767,7 +1766,7 @@ class FixxerTUI(App):
             self.update_status("🎨 Running AI Critique...", {})
             # Check if critique function exists in engine
             try:
-                from fixxer_engine import critique_single_image
+                from .engine import critique_single_image
                 import json
                 
                 # Get first image from source directory for critique
@@ -1856,7 +1855,7 @@ class FixxerTUI(App):
             # Start logging
             log_path = self.start_preview_logging()
 
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
 
             self.stop_event.clear()
@@ -1903,7 +1902,7 @@ class FixxerTUI(App):
         try:
             log_path = self.start_preview_logging()
 
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
 
             self.stop_event.clear()
@@ -1934,7 +1933,7 @@ class FixxerTUI(App):
         try:
             log_path = self.start_preview_logging()
 
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
 
             self.stop_event.clear()

@@ -53,11 +53,11 @@ Screen {
 
 /* "Easy" button - vertically centered with HUD */
 #btn-easy {
-    width: 10;
+    width: 8;
     height: 3;
     min-height: 3;
     max-height: 3;
-    margin: 0 2 0 0;
+    margin: 0 1 0 0;
     padding: 0;
     background: $surface;
     color: $primary;
@@ -74,11 +74,11 @@ Screen {
 }
 
 .easy-btn {
-    width: 10;
+    width: 8;
     height: 3;
     min-height: 3;
     max-height: 3;
-    margin: 0 2 0 0;
+    margin: 0 1 0 0;
     padding: 0;
     background: $surface;
     color: $primary;
@@ -236,7 +236,7 @@ DirectoryTree {
     width: 1fr;
     height: 1;
     /* Reduced height - sparklines only need 1 row */
-    margin: 0 1;
+    margin: 0;
 }
 
 .sysmon-value {
@@ -389,9 +389,9 @@ DirectoryTree {
 
 .workflow-btn,
 .path-btn {
-    margin: 0 1;
+    margin: 0;
     width: auto;
-    min-width: 10;
+    min-width: 8;
     padding: 0 0 0 0;
     background: $surface;
     color: #ffffff;
@@ -411,7 +411,7 @@ DirectoryTree {
 }
 
 .control-btn {
-    margin: 0 1;
+    margin: 0;
     width: auto;
     min-width: 14;
     height: 3;
@@ -476,12 +476,12 @@ DirectoryTree {
 /* === STAT BOX CONTAINERS - Compact for header === */
 .hud-box {
     width: auto;
-    min-width: 11;
-    /* Slightly wider to prevent text wrapping */
+    min-width: 10;
+    /* Optimized for smaller displays */
     height: auto;
     min-height: 3;
     /* Reduced height for header */
-    margin: 0 1;
+    margin: 0;
     /* Spacing between boxes */
     background: $background;
     /* Pure black #000000 */
@@ -570,7 +570,7 @@ DirectoryTree {
     color: $surface;
     /* Nearly invisible #111111 */
     padding: 0;
-    margin: 0 1;
+    margin: 0;
 }
 
 /* === INDIVIDUAL BOX CUSTOMIZATION === */
@@ -582,8 +582,8 @@ DirectoryTree {
 
 /* Tiers box - wider to fit A/B/C layout */
 #hud-tiers {
-    min-width: 18;
-    /* Wider for proper alignment of letters and numbers */
+    min-width: 15;
+    /* Optimized for smaller displays while maintaining A/B/C alignment */
 }
 
 /* Heroes box - no special styling needed */
@@ -766,7 +766,7 @@ DryRunSelectScreen {
     background: $background;
     border: solid $primary !important;
     color: $primary;
-    margin: 0 1;
+    margin: 0;
     height: 3;
     min-width: 12;
 }
@@ -780,7 +780,7 @@ DryRunSelectScreen {
     background: $background;
     border: solid $redline !important;
     color: $redline;
-    margin: 0 1;
+    margin: 0;
     height: 3;
     min-width: 12;
 }
