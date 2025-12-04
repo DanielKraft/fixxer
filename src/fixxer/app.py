@@ -1378,7 +1378,7 @@ class FixxerTUI(App):
         available = None
         if ENGINE_AVAILABLE:
             try:
-                from fixxer_engine import get_available_models
+                from .engine import get_available_models
                 models = get_available_models(self.write_to_log)
                 if models:
                     available = models
@@ -1668,7 +1668,7 @@ class FixxerTUI(App):
             self.update_status("🚀 Running Auto...", {})
 
             # === CREATE STATS TRACKER WITH CALLBACK ===
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
             # ==========================================
 
@@ -1702,7 +1702,7 @@ class FixxerTUI(App):
             self.update_status("📦 Grouping Bursts...", {})
             
             # === CREATE STATS TRACKER WITH CALLBACK ===
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
             # ==========================================
             
@@ -1727,7 +1727,7 @@ class FixxerTUI(App):
             self.update_status("✂️ Culling Images...", {})
             
             # === CREATE STATS TRACKER WITH CALLBACK ===
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
             # ==========================================
             
@@ -1770,7 +1770,7 @@ class FixxerTUI(App):
             self.update_status("🎨 Running AI Critique...", {})
             # Check if critique function exists in engine
             try:
-                from fixxer_engine import critique_single_image
+                from .engine import critique_single_image
                 import json
                 
                 # Get first image from source directory for critique
@@ -1859,7 +1859,7 @@ class FixxerTUI(App):
             # Start logging
             log_path = self.start_preview_logging()
 
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
 
             self.stop_event.clear()
@@ -1906,7 +1906,7 @@ class FixxerTUI(App):
         try:
             log_path = self.start_preview_logging()
 
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
 
             self.stop_event.clear()
@@ -1937,7 +1937,7 @@ class FixxerTUI(App):
         try:
             log_path = self.start_preview_logging()
 
-            from fixxer_engine import StatsTracker
+            from .engine import StatsTracker
             tracker = StatsTracker(callback=self.on_stats_update)
 
             self.stop_event.clear()
