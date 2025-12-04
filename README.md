@@ -119,7 +119,7 @@ Add this to your `~/.zshrc` or `~/.bashrc`:
 ```bash
 # FIXXER ✞ PRO Launcher
 # Adjust path to match where you cloned the repo
-alias fixxer='source ~/fixxer/venv/bin/activate && python3 ~/fixxer/fixxer_tui.py'
+alias fixxer='source ~/fixxer/venv/bin/activate && python3 -m fixxer'
 ```
 
 Reload shell: `source ~/.zshrc`
@@ -137,7 +137,7 @@ function fixxer {
 
     # Activate Venv and Run
     & "$FixxerPath\venv\Scripts\Activate.ps1"
-    python "$FixxerPath\fixxer_tui.py"
+    python -m fixxer
 }
 ```
 
@@ -261,7 +261,7 @@ Complete end-to-end processing:
 
 ## 🎛️ Configuration
 
-Configuration is stored in `~/.photosort.conf`:
+Configuration is stored in `~/.fixxer.conf`:
 
 ### Understanding `burst_auto_name`
 
@@ -339,13 +339,19 @@ Source File
 
 ```
 fixxer/
-├── fixxer_engine.py             # Core workflow logic + hash verification
-├── fixxer_tui.py                # Textual TUI application
-├── fixxer_pro.css               # Pro Mode styling (Phantom Redline)
-├── fixxer_warez.css             # Standard Mode styling (Warez)
-├── phrases.py                   # Motivational progress phrases
+├── src/
+│   └── fixxer/
+│       ├── __init__.py          # Package initialization
+│       ├── __main__.py          # Module entry point (python -m fixxer)
+│       ├── app.py               # Textual TUI application
+│       ├── engine.py            # Core workflow logic + hash verification
+│       ├── phrases.py           # Motivational progress phrases
+│       └── themes/
+│           ├── __init__.py      # Theme package marker
+│           ├── pro.css          # Pro Mode styling (Phantom Redline)
+│           └── warez.css        # Standard Mode styling (Warez)
 ├── requirements.txt             # Python dependencies
-├── pyproject.toml               # Packaging metadata
+├── pyproject.toml               # Packaging metadata (PyPI ready)
 ├── README.md                    # Main documentation
 ├── BEGINNERS_GUIDE.md           # Terminal beginner's guide
 ├── README_TUI.md                # TUI-specific documentation

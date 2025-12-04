@@ -12,8 +12,8 @@ FIXXER now includes a full-featured TUI (Terminal User Interface) with SHA256 in
 # After installing with pip install -e .
 fixxer
 
-# Or run directly from source
-python fixxer_tui.py
+# Or run as a module
+python -m fixxer
 ```
 
 ### Features
@@ -25,18 +25,18 @@ python fixxer_tui.py
 - **Real-time log panel** - Watch hash calculations and operations in real-time
 - **Animated progress indicator** - Block spinner with rotating motivational phrases
 - **Engine status checks** - BRISQUE and CLIP detection at startup
-- **Persistent config** - Settings auto-save to `~/.photosort.conf`
+- **Persistent config** - Settings auto-save to `~/.fixxer.conf`
 - **Dual UI modes** - Toggle between Warez and Pro (Phantom Redline) with F12
 - **Milestone HUD** - Real-time stats dashboard in Pro Mode (BURSTS, TIER A/B/C, TIME)
 - **Tooltip hints** - Hover over buttons to see keyboard shortcuts
 
 ### Files
 
-- `fixxer_tui.py` - Main TUI application (v1.0)
-- `fixxer_warez.css` - Standard Mode theme (Warez aesthetic)
-- `fixxer_pro.css` - Pro Mode theme (Phantom Redline)
-- `fixxer_engine.py` - Backend engine with hash verification (v1.0)
-- `phrases.py` - Rotating progress messages
+- `src/fixxer/app.py` - Main TUI application (v1.0)
+- `src/fixxer/themes/warez.css` - Standard Mode theme (Warez aesthetic)
+- `src/fixxer/themes/pro.css` - Pro Mode theme (Phantom Redline)
+- `src/fixxer/engine.py` - Backend engine with hash verification (v1.0)
+- `src/fixxer/phrases.py` - Rotating progress messages
 
 ### Dependencies
 
@@ -100,7 +100,7 @@ This installs the complete professional suite with no optional add-ons needed.
 
 **System:**
 - `Q` - Quit application
-- `R` - Refresh config (reload ~/.photosort.conf)
+- `R` - Refresh config (reload ~/.fixxer.conf)
 - `Esc` - Stop current workflow
 - `Ctrl+C` - Force quit
 
@@ -120,7 +120,7 @@ Missing engines will show fallback warnings but won't prevent operation.
 
 ### Config File
 
-Settings are saved to `~/.photosort.conf`:
+Settings are saved to `~/.fixxer.conf`:
 
 ```ini
 [behavior]
