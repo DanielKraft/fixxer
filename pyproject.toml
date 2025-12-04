@@ -79,14 +79,14 @@ Changelog = "https://github.com/BandwagonVibes/fixxer/releases"
 
 [project.scripts]
 # This creates the magic 'fixxer' command in the user's bin folder
-fixxer = "fixxer_tui:main"
+fixxer = "fixxer.app:main"
 
 [tool.setuptools]
-# Ensure these match your actual filenames
-py-modules = ["fixxer_engine", "fixxer_tui", "phrases"]
+package-dir = {"" = "src"}
+packages = ["fixxer", "fixxer.themes"]
 
 [tool.setuptools.package-data]
-"*" = ["*.css"]
+fixxer = ["themes/*.css"]
 
 # Black code formatter configuration
 [tool.black]
@@ -125,7 +125,7 @@ testpaths = [
 
 # Coverage configuration
 [tool.coverage.run]
-source = ["fixxer_engine", "fixxer_tui", "phrases"]
+source = ["src/fixxer"]
 omit = [
     "*/tests/*",
     "*/venv/*",
