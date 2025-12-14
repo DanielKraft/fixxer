@@ -1,7 +1,7 @@
 # FIXXER ✞ PRO
 ### Professional-Grade Photography Workflow Automation
 
-![Version](https://img.shields.io/badge/version-1.0-red.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-red.svg)
 ![Python](https://img.shields.io/badge/python-3.10--3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -384,7 +384,7 @@ Example `.fixxer.json`:
 
 ```json
 {
-  "fixxer_version": "1.0",
+  "fixxer_version": "1.1.0",
   "filename": "golden-hour-cityscape.jpg",
   "original_path": "/source/IMG_1234.jpg",
   "final_path": "/archive/2024-11-20_Urban/Architecture/golden-hour-cityscape.jpg",

@@ -5,5 +5,5 @@ FIXXER  - Professional-Grade Photography Workflow Automation.
 
 from .app import FixxerTUI, main
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __all__ = ["FixxerTUI", "main", "__version__"]

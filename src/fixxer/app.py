@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-FIXXER ✞ TUI (v1.0) - Professional-Grade Edition
+FIXXER ✞ TUI (v1.1) - Refactored & Optimized
 
-- NEW (v1.0): Hash verification with SHA256 integrity checking
-- NEW (v1.0): JSON sidecar files for audit trail
-- NEW (v1.0): FIXXER ✞ branding - "CHAOS PATCHED // LOGIC INJECTED"
+- NEW (v1.1): Modular architecture - config, security, vision, engine separation
+- NEW (v1.1): Case-insensitive file extension matching
+- CORE (v1.0): Hash verification with SHA256 integrity checking
+- CORE (v1.0): JSON sidecar files for audit trail
+- CORE (v1.0): FIXXER ✞ branding - "CHAOS PATCHED // LOGIC INJECTED"
 - CORE: BRISQUE and CLIP engine verification checks
 - UI: Animated block spinner with rotating motivational phrases
 - STYLE: External CSS theming via fixxer_warez.css
@@ -56,16 +58,18 @@ except ImportError:
 try:
     from .engine import (
         auto_workflow,
-        simple_sort_workflow,  # NEW: Simple legacy mode workflow
+        simple_sort_workflow,
         group_bursts_in_directory,
         cull_images_in_directory,
         show_exif_insights,
-        load_app_config,
-        save_app_config,  # NEW: Save config changes
-        check_rawpy,  # v10.0: Python-native RAW support (replaces check_dcraw)
-        check_ollama_connection,  # v1.0.0: Llama connection check with dad joke
-        SUPPORTED_EXTENSIONS  # Import to check what's supported
+        check_rawpy
     )
+    from .config import (
+        load_app_config,
+        save_app_config,
+        SUPPORTED_EXTENSIONS
+    )
+    from .vision import check_ollama_connection
     ENGINE_AVAILABLE = True
 except ImportError as e:
     ENGINE_AVAILABLE = False
@@ -928,7 +932,7 @@ class FixxerTUI(App):
         sys.stdout.write("\033]0;FIXXER\007")
         sys.stdout.flush()
 
-        self.write_to_log("[bold red]VisionCrew Fixxer v1.0.0[/bold red] - System Online")
+        self.write_to_log("[bold red]VisionCrew Fixxer v1.1.0[/bold red] - System Online")
         self.write_to_log("[dim]────────────────────────────────────────────[/dim]")
         
         if not ENGINE_AVAILABLE:
@@ -964,7 +968,7 @@ class FixxerTUI(App):
             all_systems_ready = False
 
         if self.app_config.get('config_file_found'):
-            self.write_to_log(f"✓ Config loaded from ~/.photosort.conf")
+            self.write_to_log(f"✓ Config loaded from ~/.fixxer.conf")
         else:
             self.write_to_log("[yellow]No config file found, using defaults[/yellow]")
         
@@ -1345,7 +1349,7 @@ class FixxerTUI(App):
             
             # Save to config file
             if ENGINE_AVAILABLE and save_app_config(self.app_config):
-                self.write_to_log(f"   [dim]Config saved to ~/.photosort.conf[/dim]")
+                self.write_to_log(f"   [dim]Config saved to ~/.fixxer.conf[/dim]")
             
         except Exception as e:
             self.write_to_log(f"[red]Error setting source path: {e}[/red]")
@@ -1362,7 +1366,7 @@ class FixxerTUI(App):
                 self.refresh_config_display()
                 # Save to config file
                 if ENGINE_AVAILABLE and save_app_config(self.app_config):
-                    self.write_to_log(f"   [dim]Config saved to ~/.photosort.conf[/dim]")
+                    self.write_to_log(f"   [dim]Config saved to ~/.fixxer.conf[/dim]")
         
         self.push_screen(DirectorySelectScreen("Select Destination Directory", start), handle_result)
     
@@ -1391,7 +1395,7 @@ class FixxerTUI(App):
                 self.write_to_log(f"✓ Model set to: {model}")
                 # Save to config file
                 if ENGINE_AVAILABLE and save_app_config(self.app_config):
-                    self.write_to_log(f"   [dim]Config saved to ~/.photosort.conf[/dim]")
+                    self.write_to_log(f"   [dim]Config saved to ~/.fixxer.conf[/dim]")
         
         self.push_screen(ModelSelectScreen(current, available), handle_result)
     

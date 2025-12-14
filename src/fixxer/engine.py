@@ -1,37 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-FIXXER ✞ Engine (v1.0) - Professional-Grade with Hash Verification
+FIXXER Engine
+High-level workflow orchestration for photo organization and processing.
 
-NEW IN v1.0:
-- SHA256 hash verification for ALL file move operations
-- JSON sidecar files for audit trail (.fixxer.json)
-- Halt-on-mismatch integrity protection
-- "CHAOS PATCHED // LOGIC INJECTED"
-
-v10.8 (Cross-Platform Migration):
-- REMOVED macOS-only sips dependency completely
-- convert_raw_to_jpeg() now uses Pillow for PPM→JPEG conversion
-- 100% cross-platform (Linux, macOS, Windows with dcraw)
-- Zero temp files created (pure in-memory operation via BytesIO)
-- 5x smaller output files (689KB vs 3.7MB from sips)
-
-v10.7 FIXES:
-- convert_raw_to_jpeg() tries embedded thumbnail first (-e flag)
-- Falls back to full demosaic only if embedded thumbnail fails
-- Added timeouts to prevent hanging on problematic RAW files
+CHAOS PATCHED // LOGIC INJECTED
 """
 
 from __future__ import annotations
 
 import os
 import json
-import hashlib  # NEW v1.0: SHA256 hash verification
-import base64
-import requests
-import shutil
-import tempfile
-import configparser
 import time
 import threading
 from pathlib import Path
@@ -39,11 +18,47 @@ from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Tuple, List, Dict, Any, Callable
 from collections import defaultdict, Counter
+from io import BytesIO
 import re
 import subprocess
 import sys
 import math
-from io import BytesIO
+
+# Import from new modules
+from .config import (
+    SUPPORTED_EXTENSIONS,
+    RAW_SUPPORT,
+    GROUP_KEYWORDS,
+    BEST_PICK_PREFIX,
+    PREP_FOLDER_NAME,
+    TIER_A_FOLDER,
+    TIER_B_FOLDER,
+    TIER_C_FOLDER,
+    SESSION_DATE,
+    SESSION_TIMESTAMP,
+    MAX_WORKERS,
+    DEFAULT_MODEL_NAME,
+    OLLAMA_URL,
+    load_app_config,
+    save_app_config
+)
+
+from .security import (
+    calculate_sha256,
+    verify_file_move_with_hash,
+    read_existing_sidecar,
+    write_sidecar_file
+)
+
+from .vision import (
+    convert_raw_to_jpeg,
+    encode_image,
+    get_image_bytes_for_analysis,
+    check_ollama_connection,
+    get_ai_description,
+    get_ai_name_with_cache,
+    critique_single_image
+)
 
 # --- Optional Libs (Required for Real Engine) ---
 
@@ -69,106 +84,8 @@ try:
 except ImportError:
     V6_4_EXIF_LIBS_AVAILABLE = False
 
-# --- v7.1 Modules (Optional) ---
-# We'll stub these for now, as the TUI doesn't use them yet
-# In a future step, we could port these or integrate them.
-class MockSessionTracker:
-    def set_model(self, model): pass
-    def add_operation(self, op): pass
-    def set_destination(self, dest): pass
-    def add_size_before(self, size): pass
-    def add_size_after(self, size): pass
-    def record_image(self, size, success): pass
-    def print_summary(self): pass
-    def save_to_history(self, path): pass
-
-SessionTracker = MockSessionTracker
-
-
 # ==============================================================================
-# III. CONSTANTS & CONFIGURATION
-# ==============================================================================
-
-# --- AI Critic "Gold Master" Prompt ---
-AI_CRITIC_PROMPT = """
-You are a professional Creative Director and magazine photo editor. Your job is to provide ambitious, artistic, and creative feedback to elevate a photo from "good" to "great."
-
-**CREATIVE TOOLBOX (Use these for your suggestion):**
-* **Mood & Atmosphere:** (e.g., 'cinematic,' 'moody,' 'ethereal,' 'nostalgic,' 'dramatic')
-* **Color Grading:** (e.g., 'filmic teal-orange,' 'warm vintage,' 'cool desaturation,' 'split-toning')
-* **Light & Shadow:** (e.g., 'crushed blacks,' 'soft, lifted shadows,' 'localized dodging/burning,' 'a subtle vignette')
-* **Texture:** (e.g., 'add fine-grain film,' 'soften the focus,' 'increase clarity')
-
-**YOUR TASK:**
-Analyze the provided image by following these steps *internally*:
-1.  **Composition:** Analyze balance, guiding principles (thirds, lines), and subject placement. Rate it 1-10.
-2.  **Lighting & Exposure:** Analyze quality, direction, temperature, and any blown highlights or crushed shadows.
-3.  **Color & Style:** Analyze the color palette, white balance, and current post-processing style.
-
-After your analysis, you MUST return **ONLY a single, valid JSON object**. Do not provide *any* other text, preamble, or conversation. Your response must be 100% valid JSON, formatted *exactly* like this template:
-
-```json
-{
-  "composition_score": <an integer from 1 to 10>,
-  "composition_critique": "<A brief, one-sentence critique of the composition.>",
-  "lighting_critique": "<A brief, one-sentence critique of the lighting and exposure.>",
-  "color_critique": "<A brief, one-sentence critique of the color and current style.>",
-  "final_verdict": "<A one-sentence summary of what works and what doesn't.>",
-  "creative_mood": "<The single, most ambitious 'Creative Mood' this photo could have, chosen from the toolbox.>",
-  "creative_suggestion": "<Your single, ambitious, artistic post-processing suggestion to achieve that mood. This must be a detailed, actionable paragraph.>"
-}
-```
-"""
-
-# --- Core Configuration ---
-OLLAMA_URL = "http://localhost:11434/api/chat"
-DEFAULT_MODEL_NAME = "qwen2.5vl:3b"
-DEFAULT_DESTINATION_BASE = Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/negatives"
-DEFAULT_CRITIQUE_MODEL = "qwen2.5vl:3b"
-
-DEFAULT_CULL_ALGORITHM = 'legacy'
-DEFAULT_BURST_ALGORITHM = 'legacy'
-
-DEFAULT_CULL_THRESHOLDS = {
-    'sharpness_good': 40.0,
-    'sharpness_dud': 15.0,
-    'exposure_dud_pct': 0.20,
-    'exposure_good_pct': 0.05
-}
-DEFAULT_BURST_THRESHOLD = 8
-CONFIG_FILE_PATH = Path.home() / ".fixxer.conf"
-
-SUPPORTED_EXTENSIONS = {'.jpg', '.jpeg', '.png'}
-RAW_SUPPORT = False
-
-MAX_WORKERS = 5
-INGEST_TIMEOUT = 120
-CRITIQUE_TIMEOUT = 120
-
-SESSION_DATE = datetime.now().strftime("%Y-%m-%d")
-SESSION_TIMESTAMP = datetime.now().strftime("%Y-%m-%d_%H%M")
-
-GROUP_KEYWORDS = {
-    "Architecture": ["building", "architecture"],
-    "Street-Scenes": ["street", "road", "city"],
-    "People": ["people", "person", "man", "woman"],
-    "Nature": ["tree", "forest", "mountain", "lake"],
-    "Transportation": ["car", "bus", "train", "vehicle"],
-    "Signs-Text": ["sign", "text", "billboard"],
-    "Food-Dining": ["food", "restaurant", "cafe"],
-    "Animals": ["dog", "cat", "bird", "animal"],
-    "Interior": ["interior", "room", "inside"],
-}
-
-BEST_PICK_PREFIX = "_PICK_"
-PREP_FOLDER_NAME = "_ReadyForLightroom"
-TIER_A_FOLDER = "_Tier_A"
-TIER_B_FOLDER = "_Tier_B"
-TIER_C_FOLDER = "_Tier_C"
-
-
-# ==============================================================================
-# III.5 STATS TRACKER (FIXXER v10.0 - HUD SUPPORT)
+# STATS TRACKER
 # ==============================================================================
 
 class StatsTracker:
@@ -244,255 +161,7 @@ class StatsTracker:
 
 
 # ==============================================================================
-# IV. HASH VERIFICATION (FIXXER v1.0)
-# ==============================================================================
-
-def read_existing_sidecar(file_path: Path, log_callback: Callable[[str], None] = None) -> Optional[Dict[str, Any]]:
-    """
-    Read existing sidecar file if it exists at the source location.
-    
-    Args:
-        file_path: Path to the image file (sidecar will be <file_path>.fixxer.json)
-        log_callback: Optional logging function
-    
-    Returns:
-        Dictionary with sidecar data if found, None otherwise
-    """
-    try:
-        sidecar_path = file_path.parent / f"{file_path.name}.fixxer.json"
-        
-        if not sidecar_path.exists():
-            return None
-        
-        with open(sidecar_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            return data
-    
-    except Exception as e:
-        if log_callback:
-            log_callback(f"   [yellow]⚠️[/yellow] Could not read existing sidecar: {e}")
-        return None
-
-
-def calculate_sha256(file_path: Path, log_callback: Callable[[str], None] = None) -> Optional[str]:
-    """
-    Calculate SHA256 hash of a file.
-    
-    Args:
-        file_path: Path to file to hash
-        log_callback: Optional logging function
-    
-    Returns:
-        SHA256 hash as hex string, or None on error
-    """
-    try:
-        sha256_hash = hashlib.sha256()
-        
-        with open(file_path, "rb") as f:
-            # Read file in chunks to handle large files efficiently
-            for byte_block in iter(lambda: f.read(65536), b""):
-                sha256_hash.update(byte_block)
-        
-        return sha256_hash.hexdigest()
-    
-    except Exception as e:
-        if log_callback:
-            log_callback(f"   [red]✗[/red] Hash calculation failed: {e}")
-        return None
-
-
-def verify_file_move_with_hash(
-    source_path: Path,
-    destination_path: Path,
-    log_callback: Callable[[str], None] = None,
-    generate_sidecar: bool = True
-) -> Tuple[bool, Optional[str], Optional[str]]:
-    """
-    Move file with SHA256 integrity verification.
-    
-    Workflow:
-    1. Calculate hash of source file
-    2. Move file to destination
-    3. Calculate hash of destination file
-    4. Compare hashes
-    5. Optionally generate JSON sidecar
-    6. Return success status
-    
-    Args:
-        source_path: Source file path
-        destination_path: Destination file path
-        log_callback: Optional logging function
-        generate_sidecar: If True, create .fixxer.json sidecar file
-    
-    Returns:
-        Tuple of (success: bool, source_hash: str, dest_hash: str)
-        On failure, raises RuntimeError to halt workflow
-    """
-    def log(msg: str):
-        if log_callback:
-            log_callback(msg)
-    
-    try:
-        # Step 0: Read existing sidecar (if any) before moving
-        existing_sidecar = read_existing_sidecar(source_path, log_callback)
-        existing_history = []
-        if existing_sidecar and 'move_history' in existing_sidecar:
-            existing_history = existing_sidecar['move_history']
-        
-        # Step 1: Calculate source hash
-        log(f"   → Computing integrity hash...")
-        source_hash = calculate_sha256(source_path, log_callback)
-        
-        if not source_hash:
-            error_msg = f"Failed to calculate source hash for {source_path.name}"
-            log(f"   [red]✗[/red] {error_msg}")
-            raise RuntimeError(error_msg)
-        
-        # Show shortened hash in logs
-        short_hash = f"{source_hash[:16]}..."
-        log(f"   → SHA256: [cyan]{short_hash}[/cyan]")
-        
-        # Step 2: Move the file
-        log(f"   → Moving to {destination_path.parent.name}/")
-        shutil.move(str(source_path), str(destination_path))
-        
-        # Step 3: Calculate destination hash
-        log(f"   → Verifying integrity...")
-        dest_hash = calculate_sha256(destination_path, log_callback)
-        
-        if not dest_hash:
-            error_msg = f"Failed to calculate destination hash for {destination_path.name}"
-            log(f"   [red]✗[/red] {error_msg}")
-            raise RuntimeError(error_msg)
-        
-        # Step 4: Compare hashes
-        if source_hash == dest_hash:
-            log(f"   [green]✓[/green] Hash verified: MATCH")
-            
-            # Step 5: Generate sidecar if requested
-            if generate_sidecar:
-                sidecar_success = write_sidecar_file(
-                    destination_path,
-                    source_path,
-                    source_hash,
-                    verified=True,
-                    existing_history=existing_history,
-                    log_callback=log_callback
-                )
-                if not sidecar_success:
-                    log(f"   [yellow]⚠️[/yellow] Sidecar write failed (non-critical)")
-                
-                # Step 6: Clean up old sidecar at source location (if it existed)
-                if existing_sidecar:
-                    old_sidecar_path = source_path.parent / f"{source_path.name}.fixxer.json"
-                    try:
-                        if old_sidecar_path.exists():
-                            old_sidecar_path.unlink()
-                    except Exception as e:
-                        # Non-critical - just log the warning
-                        log(f"   [yellow]⚠️[/yellow] Could not remove old sidecar (non-critical): {e}")
-            
-            return True, source_hash, dest_hash
-        
-        else:
-            # CRITICAL: Hash mismatch detected - HALT WORKFLOW
-            log(f"   [red]✗ CRITICAL: Hash verified: MISMATCH[/red]")
-            log(f"   [red]✗ Source:      {source_hash[:32]}...[/red]")
-            log(f"   [red]✗ Destination: {dest_hash[:32]}...[/red]")
-            log(f"   [red]✗ FILE CORRUPTION DETECTED[/red]")
-            
-            # Write sidecar with corruption flag
-            if generate_sidecar:
-                write_sidecar_file(
-                    destination_path,
-                    source_path,
-                    source_hash,
-                    verified=False,
-                    dest_hash=dest_hash,
-                    existing_history=existing_history,
-                    log_callback=log_callback
-                )
-            
-            # HALT: Raise exception to stop workflow
-            error_msg = f"Hash mismatch detected for {destination_path.name} - workflow halted for safety"
-            raise RuntimeError(error_msg)
-    
-    except RuntimeError:
-        # Re-raise RuntimeError (our controlled halt)
-        raise
-    except Exception as e:
-        error_msg = f"File move failed: {e}"
-        log(f"   [red]✗[/red] {error_msg}")
-        raise RuntimeError(error_msg)
-
-
-def write_sidecar_file(
-    destination_path: Path,
-    original_path: Path,
-    source_hash: str,
-    verified: bool,
-    dest_hash: Optional[str] = None,
-    existing_history: Optional[List[Dict[str, str]]] = None,
-    log_callback: Callable[[str], None] = None
-) -> bool:
-    """
-    Write a JSON sidecar file with hash verification metadata and move history.
-    
-    Sidecar filename: <original_filename>.fixxer.json
-    Example: photo.jpg -> photo.jpg.fixxer.json
-    
-    Args:
-        destination_path: Where the file ended up
-        original_path: Where the file came from
-        source_hash: SHA256 of source
-        verified: True if hashes matched
-        dest_hash: Optional SHA256 of destination (for mismatch debugging)
-        existing_history: List of previous moves (from old sidecar)
-        log_callback: Optional logging function
-    
-    Returns:
-        True on success, False on error
-    """
-    try:
-        sidecar_path = destination_path.parent / f"{destination_path.name}.fixxer.json"
-        
-        # Build move history by appending current move to existing history
-        move_history = existing_history if existing_history else []
-        
-        current_move = {
-            "timestamp": datetime.now().isoformat(),
-            "from": str(original_path),
-            "to": str(destination_path),
-            "operation": "file_move"
-        }
-        move_history.append(current_move)
-        
-        metadata = {
-            "fixxer_version": "1.0",
-            "filename": destination_path.name,
-            "sha256_source": source_hash,
-            "verified": verified,
-            "move_history": move_history
-        }
-        
-        # Add destination hash if provided (for mismatch cases)
-        if dest_hash and dest_hash != source_hash:
-            metadata["sha256_destination"] = dest_hash
-            metadata["corruption_detected"] = True
-        
-        with open(sidecar_path, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, indent=2)
-        
-        return True
-    
-    except Exception as e:
-        if log_callback:
-            log_callback(f"   [yellow]⚠️[/yellow] Sidecar write error: {e}")
-        return False
-
-
-# ==============================================================================
-# V. CORE UTILITIES
+# IV. CORE UTILITIES
 # ==============================================================================
 
 def no_op_logger(message: str) -> None:
@@ -501,99 +170,26 @@ def no_op_logger(message: str) -> None:
 
 def check_rawpy(log_callback: Callable[[str], None] = no_op_logger):
     """Check if rawpy is available and update RAW support"""
-    global RAW_SUPPORT
-    global SUPPORTED_EXTENSIONS
+    from . import config
     try:
         import rawpy
-        RAW_SUPPORT = True
+        config.RAW_SUPPORT = True
         # Add ALL common RAW formats that rawpy supports
         # rawpy uses libraw which supports 100+ RAW formats
         raw_extensions = {'.rw2', '.arw', '.cr2', '.cr3', '.nef', '.dng', '.raf', '.orf', '.pef', '.srw',
                          '.3fr', '.ari', '.bay', '.crw', '.cs1', '.dc2', '.dcr', '.drf', '.eip', '.erf',
                          '.fff', '.iiq', '.k25', '.kdc', '.mdc', '.mef', '.mos', '.mrw', '.nrw', '.obm',
                          '.ptx', '.pxn', '.r3d', '.raw', '.rwl', '.rw1', '.rwz', '.sr2', '.srf', '.sti', '.x3f'}
-        SUPPORTED_EXTENSIONS.update(raw_extensions)
+        config.SUPPORTED_EXTENSIONS.update(raw_extensions)
         log_callback(f"✓ [green]rawpy found.[/green] RAW support enabled.")
         log_callback(f"  Common formats: RW2, CR2, CR3, NEF, ARW, DNG, RAF, ORF, PEF, SRW + 40 more")
     except ImportError:
-        RAW_SUPPORT = False
+        config.RAW_SUPPORT = False
         log_callback("✗ [yellow]rawpy not found.[/yellow] RAW support disabled.")
         log_callback("  Install with: pip install rawpy")
     except Exception as e:
-        RAW_SUPPORT = False
+        config.RAW_SUPPORT = False
         log_callback(f"✗ [red]rawpy check failed:[/red] {e}")
-
-# DEPRECATED: Use check_rawpy() instead
-def check_dcraw(log_callback: Callable[[str], None] = no_op_logger):
-    """DEPRECATED: dcraw is no longer used. Call check_rawpy() instead."""
-    log_callback("[yellow]Warning: check_dcraw() is deprecated. Using rawpy now.[/yellow]")
-    check_rawpy(log_callback)
-
-def check_ollama_connection(
-    log_callback: Callable[[str], None] = no_op_logger,
-    all_systems_go: bool = True
-) -> bool:
-    """
-    Check if Ollama is running and accessible with 3-line llama narrative.
-    
-    Features a bilingual dad joke:
-    - Line 1: "Looking for llamas 🔎🦙"
-    - Line 2: Connection status
-    - Line 3: "¿Cómo se Llama? Se llama 'Speed' 🦙🦙💨" + system status
-    
-    Args:
-        log_callback: Logging function
-        all_systems_go: True if all critical dependencies (rawpy, BRISQUE, CLIP) are ready
-    
-    Returns:
-        True if Ollama is accessible, False otherwise
-    """
-    try:
-        # Line 1: The Search
-        log_callback("   [grey]Looking for llamas 🔎🦙[/grey]")
-        
-        response = requests.get("http://localhost:11434/api/tags", timeout=3)
-        
-        if response.status_code == 200:
-            data = response.json()
-            models = data.get('models', [])
-            model_count = len(models)
-            
-            # Line 2: The Discovery
-            log_callback(f"   [green]✓ Ollama connected[/green] ({model_count} models)")
-            
-            # Line 3: The Punchline + System Status
-            if all_systems_go:
-                status = "[green]✅ (FULL VISION)[/green]"
-            else:
-                status = "[yellow]⚠️  (limited features)[/yellow]"
-            
-            log_callback(
-                f"   [bold cyan]¿Cómo se Llama?[/bold cyan] "
-                f"[bold white]Se llama 'Speed'[/bold white] 🦙🦙💨    {status}"
-            )
-            
-            return True
-        else:
-            log_callback("   [yellow]⚠️ Ollama responded but status unclear[/yellow]")
-            return False
-            
-    except requests.exceptions.ConnectionError:
-        log_callback("   [grey]Looking for llamas 🔎🦙[/grey]")
-        log_callback("   [red]✗ Ollama not running[/red]")
-        log_callback("   [dim]No llamas found. Start with: [cyan]ollama serve[/cyan][/dim]")
-        return False
-        
-    except requests.exceptions.Timeout:
-        log_callback("   [grey]Looking for llamas 🔎🦙[/grey]")
-        log_callback("   [yellow]⚠️ Ollama connection timeout[/yellow]")
-        log_callback("   [dim]Llamas are hiding. Try again?[/dim]")
-        return False
-        
-    except Exception as e:
-        log_callback("   [grey]Looking for llamas 🔎🦙[/grey]")
-        log_callback(f"   [yellow]⚠️ Ollama check failed: {e}[/yellow]")
-        return False
 
 def get_available_models(log_callback: Callable[[str], None] = no_op_logger) -> Optional[List[str]]:
     """Get list of available Ollama models."""
@@ -613,120 +209,6 @@ def get_available_models(log_callback: Callable[[str], None] = no_op_logger) -> 
     except Exception as e:
         log_callback(f"   [red]✗ Ollama connection error:[/red] {e}")
         return None
-
-def convert_raw_to_jpeg(raw_path: Path, log_callback: Callable[[str], None] = no_op_logger) -> Optional[bytes]:
-    """Convert RAW file to JPEG bytes using rawpy (Python-native, cross-platform).
-    
-    v10.0 Migration: rawpy replaces dcraw subprocess calls
-    
-    Method 1: Embedded Thumbnail Extraction (Fast)
-    - Extracts embedded JPEG thumbnail using rawpy
-    - Typical size: 500-1000KB
-    - Quality: Perfect for CLIP embeddings and BRISQUE scoring
-    
-    Method 2: Quick Demosaic Fallback (Slower)
-    - Uses half-size demosaic for speed
-    - Only if thumbnail extraction fails
-    
-    Benefits vs dcraw:
-    - 100% Python-native (no subprocess, no system dependency)
-    - Faster (C++ library called directly)
-    - Supports 100+ RAW formats via libraw
-    - Cross-platform (Linux, macOS, Windows)
-    - No temp files (pure memory operation)
-    """
-    if not RAW_SUPPORT:
-        return None
-    
-    try:
-        import rawpy
-    except ImportError:
-        log_callback(f"   [red]rawpy not available for RAW conversion[/red]")
-        return None
-    
-    # Method 1: Extract embedded thumbnail (fast, works for most modern cameras)
-    try:
-        with rawpy.imread(str(raw_path)) as raw:
-            # Try to extract embedded thumbnail
-            try:
-                thumb = raw.extract_thumb()
-                if thumb.format == rawpy.ThumbFormat.JPEG:
-                    # Perfect! Camera provided JPEG thumbnail
-                    return thumb.data
-                elif thumb.format == rawpy.ThumbFormat.BITMAP:
-                    # Got a bitmap thumbnail, convert to JPEG via Pillow
-                    from PIL import Image
-                    img = Image.frombytes('RGB', (thumb.width, thumb.height), thumb.data)
-                    jpeg_buffer = BytesIO()
-                    img.save(jpeg_buffer, format='JPEG', quality=95)
-                    jpeg_buffer.seek(0)
-                    return jpeg_buffer.read()
-            except rawpy.LibRawNoThumbnailError:
-                # No embedded thumbnail, fall through to Method 2
-                pass
-            except Exception as thumb_error:
-                # Thumbnail extraction failed for some reason, fall through
-                log_callback(f"   [dim]Thumbnail extraction failed for {raw_path.name}, using demosaic[/dim]")
-            
-            # Method 2: Quick demosaic fallback (half-size for speed)
-            try:
-                rgb = raw.postprocess(
-                    use_camera_wb=True,    # Use camera white balance
-                    half_size=True,        # Half resolution for speed (still plenty for AI)
-                    no_auto_bright=True,   # Don't auto-brighten
-                    output_bps=8           # 8-bit output
-                )
-                
-                # Convert numpy array to JPEG via Pillow in-memory
-                from PIL import Image
-                img = Image.fromarray(rgb)
-                jpeg_buffer = BytesIO()
-                img.save(jpeg_buffer, format='JPEG', quality=95)
-                jpeg_buffer.seek(0)
-                return jpeg_buffer.read()
-                
-            except Exception as demosaic_error:
-                log_callback(f"   [red]Demosaic failed for {raw_path.name}:[/red] {demosaic_error}")
-                return None
-    
-    except Exception as e:
-        log_callback(f"   [red]Error converting RAW file {raw_path.name}:[/red] {e}")
-        return None
-
-def encode_image(image_path: Path, log_callback: Callable[[str], None] = no_op_logger) -> Optional[str]:
-    """Convert image to base64 string, handling RAW files"""
-    try:
-        # All RAW formats supported by dcraw
-        raw_formats = {'.rw2', '.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.pef', '.srw'}
-        if image_path.suffix.lower() in raw_formats:
-            jpeg_bytes = convert_raw_to_jpeg(image_path, log_callback)
-            if jpeg_bytes:
-                return base64.b64encode(jpeg_bytes).decode('utf-8')
-            else:
-                return None
-        
-        with open(image_path, 'rb') as img_file:
-            return base64.b64encode(img_file.read()).decode('utf-8')
-    
-    except Exception as e:
-        log_callback(f"   [red]Error encoding {image_path.name}:[/red] {e}")
-        return None
-
-def get_image_bytes_for_analysis(image_path: Path, log_callback: Callable[[str], None] = no_op_logger) -> Optional[bytes]:
-    """Helper to get bytes from any supported file"""
-    ext = image_path.suffix.lower()
-    # All RAW formats supported by dcraw
-    raw_formats = {'.rw2', '.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.pef', '.srw'}
-    if ext in raw_formats:
-        return convert_raw_to_jpeg(image_path, log_callback)
-    elif ext in ('.jpg', '.jpeg', '.png'):
-        try:
-            with open(image_path, 'rb') as f:
-                return f.read()
-        except Exception as e:
-            log_callback(f"   [red]Failed to read {image_path.name}:[/red] {e}")
-            return None
-    return None
 
 def get_unique_filename(base_name: str, extension: str, destination: Path) -> Path:
     """Generate unique filename if file already exists"""
@@ -833,324 +315,8 @@ def initialize_rename_log(log_path: Path):
         pass
 
 # ==============================================================================
-# VI. CONFIGURATION LOGIC
+# V. AI & ANALYSIS MODULES (The "Brains")
 # ==============================================================================
-
-def load_app_config() -> Dict[str, Any]:
-    """
-    (V7.0) Loads settings from ~/.fixxer.conf
-    """
-    parser = configparser.ConfigParser()
-    config_loaded = False
-    if CONFIG_FILE_PATH.exists():
-        try:
-            parser.read(CONFIG_FILE_PATH)
-            config_loaded = True
-        except configparser.Error:
-            pass # Will use fallbacks
-
-    config = {}
-    
-    config['config_file_found'] = config_loaded
-    config['config_file_path'] = str(CONFIG_FILE_PATH)
-
-    config['default_destination'] = Path(parser.get(
-        'ingest', 'default_destination',
-        fallback=str(DEFAULT_DESTINATION_BASE)
-    )).expanduser()
-    config['default_model'] = parser.get(
-        'ingest', 'default_model',
-        fallback=DEFAULT_MODEL_NAME
-    )
-    config['cull_thresholds'] = {
-        'sharpness_good': parser.getfloat('cull', 'sharpness_good', fallback=DEFAULT_CULL_THRESHOLDS['sharpness_good']),
-        'sharpness_dud': parser.getfloat('cull', 'sharpness_dud', fallback=DEFAULT_CULL_THRESHOLDS['sharpness_dud']),
-        'exposure_dud_pct': parser.getfloat('cull', 'exposure_dud_pct', fallback=DEFAULT_CULL_THRESHOLDS['exposure_dud_pct']),
-        'exposure_good_pct': parser.getfloat('cull', 'exposure_good_pct', fallback=DEFAULT_CULL_THRESHOLDS['exposure_good_pct']),
-    }
-    config['cull_algorithm'] = parser.get(
-        'cull', 'cull_algorithm',
-        fallback=DEFAULT_CULL_ALGORITHM
-    )
-    config['burst_threshold'] = parser.getint(
-        'burst', 'similarity_threshold',
-        fallback=DEFAULT_BURST_THRESHOLD
-    )
-    config['burst_algorithm'] = parser.get(
-        'burst', 'burst_algorithm',
-        fallback=DEFAULT_BURST_ALGORITHM
-    )
-    # v1.1: Burst auto-naming toggle (default: false for speed)
-    config['burst_auto_name'] = parser.getboolean(
-        'burst', 'burst_auto_name',
-        fallback=False
-    )
-    config['critique_model'] = parser.get(
-        'critique', 'default_model',
-        fallback=DEFAULT_CRITIQUE_MODEL
-    )
-    config['last_source_path'] = parser.get(
-        'behavior', 'last_source_path', fallback=None
-    )
-    config['last_destination_path'] = parser.get(
-        'behavior', 'last_destination_path', fallback=None
-    )
-    
-    # v7.1: Folder settings (from original file)
-    config['burst_parent_folder'] = parser.getboolean(
-        'folders', 'burst_parent_folder', fallback=True
-    )
-    config['ai_session_naming'] = parser.getboolean(
-        'folders', 'ai_session_naming', fallback=True
-    )
-    
-    # v10.0: Pro Mode toggle (Phantom Redline aesthetic)
-    config['pro_mode'] = parser.getboolean(
-        'behavior', 'pro_mode', fallback=False
-    )
-
-    return config
-
-
-def save_app_config(config: Dict[str, Any]) -> bool:
-    """
-    (V10.7) Save specific settings back to ~/.fixxer.conf
-    Only saves paths and model settings that are commonly changed during TUI use.
-    """
-    parser = configparser.ConfigParser()
-    
-    # Load existing config first to preserve other settings
-    if CONFIG_FILE_PATH.exists():
-        try:
-            parser.read(CONFIG_FILE_PATH)
-        except configparser.Error:
-            pass
-    
-    # Ensure sections exist
-    if not parser.has_section('behavior'):
-        parser.add_section('behavior')
-    if not parser.has_section('ingest'):
-        parser.add_section('ingest')
-    
-    # Save the key settings
-    if 'last_source_path' in config and config['last_source_path']:
-        parser.set('behavior', 'last_source_path', str(config['last_source_path']))
-    
-    if 'last_destination_path' in config and config['last_destination_path']:
-        parser.set('behavior', 'last_destination_path', str(config['last_destination_path']))
-    
-    if 'default_model' in config and config['default_model']:
-        parser.set('ingest', 'default_model', str(config['default_model']))
-    
-    # v10.0: Save pro_mode toggle
-    if 'pro_mode' in config:
-        parser.set('behavior', 'pro_mode', 'true' if config['pro_mode'] else 'false')
-    
-    try:
-        with open(CONFIG_FILE_PATH, 'w') as f:
-            parser.write(f)
-        return True
-    except Exception:
-        return False
-
-
-# ==============================================================================
-# VII. AI & ANALYSIS MODULES (The "Brains")
-# ==============================================================================
-
-def get_ai_description(image_path: Path, model_name: str, log_callback: Callable[[str], None] = no_op_logger) -> Tuple[Optional[str], Optional[List[str]]]:
-    """(V9.0) Get structured filename and tags from AI."""
-    base64_image = encode_image(image_path, log_callback)
-    if not base64_image:
-        return None, None
-
-    AI_NAMING_PROMPT = """You are an expert file-naming AI.
-Analyze this image and generate a concise, descriptive filename and three relevant tags.
-You MUST return ONLY a single, valid JSON object, formatted *exactly* like this:
-{
-  "filename": "<a-concise-and-descriptive-filename>",
-  "tags": ["<tag1>", "<tag2>", "<tag3>"]
-}
-"""
-    
-    payload = {
-        "model": model_name,
-        "messages": [
-            { "role": "user", "content": AI_NAMING_PROMPT, "images": [base64_image] }
-        ],
-        "stream": False,
-        "format": "json"
-    }
-    
-    try:
-        response = requests.post(OLLAMA_URL, json=payload, timeout=INGEST_TIMEOUT)
-        response.raise_for_status()
-        result = response.json()
-        json_string = result['message']['content'].strip()
-        data = json.loads(json_string)
-        filename = data.get("filename")
-        tags = data.get("tags")
-        if not filename or not isinstance(tags, list):
-            log_callback(f"   [yellow]Warning: Model returned valid JSON but missing keys for {image_path.name}[/yellow]")
-            return None, None
-        return str(filename), list(tags)
-        
-    except requests.exceptions.Timeout:
-        log_callback(f"   [red]Timeout processing {image_path.name}[/red]")
-        return None, None
-    except json.JSONDecodeError:
-        log_callback(f"   [red]Error: Model returned invalid JSON for {image_path.name}[/red]")
-        return None, None
-    except Exception as e:
-        log_callback(f"   [red]Error processing {image_path.name}: {e}[/red]")
-        return None, None
-
-def get_ai_name_with_cache(
-    img_path: Path,
-    model: str,
-    cache: Optional[Dict[str, Dict]],
-    cache_lock: Optional[threading.Lock],
-    log_callback: Callable[[str], None] = no_op_logger
-) -> Tuple[Optional[str], Optional[List[str]]]:
-    """
-    Get AI name/tags, using cache if valid (dry-run preview feature).
-
-    Thread-safe caching with validation:
-    - Checks file modification time (mtime) to detect changes
-    - Checks cache age (10 min expiry)
-    - Model-aware cache keys: f"{model}:{path}"
-    - Protected by threading.Lock for concurrent access
-
-    Args:
-        img_path: Image file path
-        model: Ollama model name
-        cache: Optional cache dict (None = always run AI)
-        cache_lock: Optional threading.Lock for thread-safe cache access
-        log_callback: Logging function
-
-    Returns:
-        Tuple of (filename: str, tags: List[str]) or (None, None) on failure
-    """
-    if cache is None:
-        # No cache provided, always run AI
-        return get_ai_description(img_path, model, log_callback)
-
-    # Model-aware cache key (critical: different models = different results)
-    cache_key = f"{model}:{str(img_path.absolute())}"
-    current_mtime = img_path.stat().st_mtime
-
-    # Thread-safe cache read
-    cached_entry = None
-    if cache_lock:
-        with cache_lock:
-            cached_entry = cache.get(cache_key)
-    else:
-        cached_entry = cache.get(cache_key)
-
-    # Check cache validity
-    if cached_entry:
-        # Validate: file unchanged + cache fresh (<10 min)
-        age = time.time() - cached_entry['cached_at']
-        if cached_entry['mtime'] == current_mtime and age < 600:
-            log_callback(f"   [dim]⚡ Using cached AI result[/dim]")
-            return cached_entry['filename'], cached_entry['tags']
-        else:
-            # Cache invalid (file changed or expired)
-            if cached_entry['mtime'] != current_mtime:
-                log_callback(f"   [yellow]File changed, re-running AI[/yellow]")
-            else:
-                log_callback(f"   [dim]Cache expired ({age/60:.1f}m old), re-running AI[/dim]")
-
-    # Cache miss or invalid - run AI
-    log_callback(f"   [grey]🤖 Generating AI name...[/grey]")
-    filename, tags = get_ai_description(img_path, model, log_callback)
-
-    if filename and tags:
-        # Thread-safe cache write
-        entry = {
-            'filename': filename,
-            'tags': tags,
-            'mtime': current_mtime,
-            'cached_at': time.time()
-        }
-        if cache_lock:
-            with cache_lock:
-                cache[cache_key] = entry
-        else:
-            cache[cache_key] = entry
-
-    return filename, tags
-
-def get_ai_image_name(image_path: Path, model_name: str, log_callback: Callable[[str], None] = no_op_logger) -> Optional[Dict[str, Any]]:
-    """(V9.2) Generate AI-powered name for an image (for burst PICK files)."""
-    try:
-        filename, tags = get_ai_description(image_path, model_name, log_callback)
-        if not filename or not tags:
-            return None
-        filename_no_ext = Path(filename).stem
-        clean_name = clean_filename(filename_no_ext)
-        return { 'filename': clean_name, 'tags': tags }
-    except Exception:
-        return None
-
-
-def critique_single_image(
-    image_path: Path,
-    model_name: str,
-    log_callback: Callable[[str], None] = no_op_logger
-) -> Optional[Dict[str, Any]]:
-    """(V10.6) Get AI creative critique for a single image."""
-    base64_image = encode_image(image_path, log_callback)
-    if not base64_image:
-        log_callback(f"[red]Failed to encode image for critique[/red]")
-        return None
-    
-    payload = {
-        "model": model_name,
-        "messages": [
-            { "role": "user", "content": AI_CRITIC_PROMPT, "images": [base64_image] }
-        ],
-        "stream": False,
-        "format": "json"
-    }
-    
-    try:
-        log_callback(f"   [grey]Sending to {model_name} for analysis...[/grey]")
-        response = requests.post(OLLAMA_URL, json=payload, timeout=CRITIQUE_TIMEOUT)
-        response.raise_for_status()
-        result = response.json()
-        json_string = result['message']['content'].strip()
-        
-        # Clean up potential markdown formatting
-        if json_string.startswith("```"):
-            json_string = json_string.split("```")[1]
-            if json_string.startswith("json"):
-                json_string = json_string[4:]
-            json_string = json_string.strip()
-        
-        data = json.loads(json_string)
-        
-        # Validate expected fields
-        expected_fields = [
-            "composition_score", "composition_critique", "lighting_critique",
-            "color_critique", "final_verdict", "creative_mood", "creative_suggestion"
-        ]
-        
-        for field in expected_fields:
-            if field not in data:
-                log_callback(f"[yellow]Warning: Missing field '{field}' in critique response[/yellow]")
-        
-        return data
-        
-    except requests.exceptions.Timeout:
-        log_callback(f"[red]Timeout waiting for critique response[/red]")
-        return None
-    except json.JSONDecodeError as e:
-        log_callback(f"[red]Error: Model returned invalid JSON: {e}[/red]")
-        return None
-    except Exception as e:
-        log_callback(f"[red]Error during critique: {e}[/red]")
-        return None
 
 def is_already_ai_named(filename: str) -> bool:
     """(V9.2) Check if a PICK file already has an AI-generated name."""
@@ -1337,148 +503,29 @@ def organize_into_folders(
         folder_name = category
         folder_path = destination_base / folder_name
         folder_path.mkdir(exist_ok=True)
-        log_callback(f"   [green]✓[/green] {folder_name}/ ({len(files)} files)")
-        
+        log_callback(f"   [green]✓[/green] Creating {folder_name}/ ({len(files)} files)")
+
+        moved_count = 0
         for file_info in files:
             src = files_source / file_info['filename']
             dst = folder_path / file_info['filename']
             if src.exists():
                 # FIXXER v1.0: Hash-verified move
-                log_callback(f"     Processing {src.name}...")
+                log_callback(f"     Moving {src.name} → {folder_name}/")
                 verify_file_move_with_hash(src, dst, log_callback, generate_sidecar=True)
+                moved_count += 1
             else:
-                log_callback(f"     [yellow]Warning: Source file not found, may already be moved: {src.name}[/yellow]")
-    
-    log_callback(f"\n   Organized into {len(categories)} folders.")
+                log_callback(f"     [red]✗ File not found at expected location:[/red] {src}")
+                log_callback(f"       [dim]Looking for: {file_info['filename']}[/dim]")
+                log_callback(f"       [dim]In directory: {files_source}[/dim]")
 
-def generate_ai_session_name(
-    categories: Dict[str, int], 
-    model_name: str,
-    log_callback: Callable[[str], None] = no_op_logger,
-    sample_images: Optional[List[Path]] = None
-) -> Optional[str]:
-    """(V10.6) Generate AI session name using actual image samples for better context."""
-    if not categories:
-        return None
-    
-    category_list = [f"- {cat}: {count} images" for cat, count in categories.items()]
-    category_text = "\n".join(category_list)
-    
-    # If we have sample images, use vision model for richer understanding
-    if sample_images and len(sample_images) > 0:
-        log_callback(f"   [grey]Generating session name from {len(sample_images)} sample images...[/grey]")
-        
-        # Encode up to 3 sample images
-        encoded_images = []
-        for img_path in sample_images[:3]:
-            encoded = encode_image(img_path, log_callback)
-            if encoded:
-                encoded_images.append(encoded)
-        
-        if encoded_images:
-            prompt = f"""You are an expert photography curator creating an evocative name for a photo session.
+        if moved_count > 0:
+            log_callback(f"     [green]✓ Moved {moved_count}/{len(files)} files to {folder_name}/[/green]")
 
-I'm showing you {len(encoded_images)} representative images from a photography session.
+    log_callback(f"\n   [bold]✓ Organized into {len(categories)} folders.[/bold]")
 
-Analyze these images and follow these steps:
-
-1. **Identify Visual Themes:**
-   - What subjects appear? (people, architecture, nature, street scenes, etc.)
-   - What's the setting or environment?
-   - Any recurring visual elements?
-
-2. **Capture the Artistic Mood:**
-   - What emotion or atmosphere do these images convey?
-   - Consider lighting, composition, and subject matter together.
-   - Is it contemplative, energetic, melancholic, vibrant, mysterious?
-
-3. **Generate a Single-Word Session Name:**
-   - Create ONE evocative, abstract word that captures the essence of this session.
-   - The word should be poetic and artistic, NOT a literal description.
-   - Avoid generic words like "Session", "Photos", "Collection".
-   - Think creatively: "Liminal", "Meridian", "Tessellation", "Chromatic", "Penumbra", "Waypoint", "Patina", "Drift", "Periphery", "Cadence".
-
-Additional context - Category breakdown:
-{category_text}
-
-Respond with ONLY a single JSON object:
-{{"session_name": "<your-single-evocative-word>"}}
-"""
-            
-            payload = {
-                "model": model_name,
-                "messages": [
-                    { "role": "user", "content": prompt, "images": encoded_images }
-                ],
-                "stream": False,
-                "format": "json"
-            }
-            
-            try:
-                response = requests.post(OLLAMA_URL, json=payload, timeout=90)
-                response.raise_for_status()
-                result = response.json()
-                json_string = result['message']['content'].strip()
-                data = json.loads(json_string)
-                session_name = data.get("session_name", "")
-                
-                if session_name:
-                    clean_name = re.sub(r'[^\w-]', '', session_name)
-                    log_callback(f"   [green]✓ AI generated session name: {clean_name}[/green]")
-                    return clean_name[:30]
-            except Exception as e:
-                log_callback(f"   [yellow]Vision-based naming failed, falling back to text-only: {e}[/yellow]")
-    
-    # Fallback: text-only prompt (original behavior but with better examples)
-    prompt = f"""You are an expert photography curator organizing a photo collection.
-
-Analyze the photo categories and counts provided, then follow these steps *in order*:
-
-1. **Identify the Dominant Theme:**
-   - What is the primary subject matter? (e.g., architecture, portraits, nature)
-   - What secondary themes are present?
-
-2. **Capture the Artistic Mood:**
-   - What feeling or vibe does this collection evoke? (e.g., contemplative, energetic, nostalgic)
-   - Consider the balance of subjects.
-
-3. **Generate a Single-Word Session Name:**
-   - Combine your thematic and mood analysis into ONE evocative word.
-   - The word should be abstract and artistic, NOT a literal description.
-   - IMPORTANT: Be creative and unique. Do NOT use common/overused words.
-   - Good examples: "Meridian", "Tessellation", "Patina", "Waypoint", "Cadence", "Periphery", "Substrate", "Axiom".
-   - Avoid: "Ephemera", "Threshold", "Convergence", "Solstice", "Momentum" (too common).
-
-Photo Categories:
-{category_text}
-
-Respond with ONLY a single JSON object in this exact format:
-{{"session_name": "<your-single-word-name>"}}
-"""
-    
-    payload = {
-        "model": model_name,
-        "messages": [ { "role": "user", "content": prompt } ],
-        "stream": False,
-        "format": "json"
-    }
-    
-    try:
-        response = requests.post(OLLAMA_URL, json=payload, timeout=60)
-        response.raise_for_status()
-        result = response.json()
-        json_string = result['message']['content'].strip()
-        data = json.loads(json_string)
-        session_name = data.get("session_name", "")
-        
-        if session_name:
-            clean_name = re.sub(r'[^\w-]', '', session_name)
-            return clean_name[:30]
-        return None
-        
-    except Exception as e:
-        log_callback(f"     [yellow]Warning: Could not generate AI session name: {e}[/yellow]")
-        return None
+# AI session naming removed - adds too much time for minimal value
+# Users can rename folders themselves after workflow completes
 
 # ==============================================================================
 # VIII. FEATURE WORKFLOWS (The "Tools")
@@ -1510,21 +557,21 @@ def simple_sort_workflow(
         cache_lock: Optional threading.Lock for thread-safe cache access
     """
     start_time = datetime.now()
-    
+
     if app_config is None:
         app_config = load_app_config()
-    
+
     source_str = app_config.get('last_source_path')
     dest_str = app_config.get('last_destination_path')
     chosen_model = app_config.get('default_model', DEFAULT_MODEL_NAME)
-    
+
     if not source_str or not dest_str:
         log_callback("[bold red]✗ FATAL: Source or Destination not set in config.[/bold red]")
         return {}
-    
+
     directory = Path(source_str)
     chosen_destination = Path(dest_str)
-    
+
     if not directory.is_dir():
         log_callback(f"[bold red]✗ FATAL: Source directory not found:[/bold red] {directory}")
         return {}
@@ -1547,18 +594,20 @@ def simple_sort_workflow(
     log_callback(f"   Source:      {directory}")
     log_callback(f"   Destination: {chosen_destination}")
     log_callback(f"   Model:       {chosen_model}")
-    
-    check_dcraw(log_callback)
-    
-    # Get all image files
+
+    # Get all image files (case-insensitive)
     image_files = []
     for ext in SUPPORTED_EXTENSIONS:
-        image_files.extend(directory.glob(f"*{ext}"))
-    
+        # Try both lowercase and uppercase
+        found_lower = list(directory.glob(f"*{ext}"))
+        found_upper = list(directory.glob(f"*{ext.upper()}"))
+        image_files.extend(found_lower)
+        image_files.extend(found_upper)
+
     if not image_files:
         log_callback("[yellow]No image files found in source directory.[/yellow]")
         return {}
-    
+
     log_callback(f"\n   Found {len(image_files)} images to process")
     
     # Process images: AI naming
@@ -1700,13 +749,8 @@ def auto_workflow(
         log_callback("   Please run: pip install imagehash opencv-python numpy exifread")
         return {}
     
-    session_tracker = SessionTracker()
-    session_tracker.set_model(chosen_model)
-    session_tracker.add_operation("Burst Stacking")
-    session_tracker.add_operation("Quality Culling")
-    session_tracker.add_operation("AI Naming")
-    # check_dcraw removed - we use rawpy now (Python-native RAW support)
-    
+    # Session tracking removed - was mock/stub code
+
     # Start HUD timer
     if tracker:
         tracker.start_timer()
@@ -1866,48 +910,11 @@ def auto_workflow(
             summary["categories"] = len(categories)
             summary["preview_categories"] = categories
         else:
-            # (V10.7) Pass sample images for vision-based session naming
-            # [FIX] Select up to 3 diverse hero files as samples
-            sample_images = []
-            for item in results["success"]:
-                if len(sample_images) >= 3:
-                    break
-
-                # [LOGIC PATCH] In Dry Run, file is at SOURCE. In Real Run, it's at DESTINATION.
-                if preview_mode:
-                    # File is still in source directory
-                    current_path = directory / item["original"]
-                else:
-                    # File has been moved to destination
-                    current_path = chosen_destination / item["new_name"]
-
-                if current_path.exists():
-                    # Quick test: try to encode it to ensure it's readable
-                    test_encode = encode_image(current_path, no_op_logger)
-                    if test_encode:
-                        sample_images.append(current_path)
-
-            if not sample_images and results["success"]:
-                # If no images could be encoded, just pass the paths anyway
-                # The generate_ai_session_name will fall back to text-only
-                for item in results["success"][:3]:
-                    new_path = chosen_destination / item["new_name"]
-                    if new_path.exists():
-                        sample_images.append(new_path)
-                log_callback(f"   [yellow]Warning: Could not encode sample images, using text-only naming[/yellow]")
-
-            session_name = generate_ai_session_name(categories, chosen_model, log_callback, sample_images)
-
-            if session_name and len(session_name) > 2 and app_config.get('ai_session_naming', True):
-                dated_folder = f"{SESSION_DATE}_{session_name}"
-                log_callback(f"\n   [bold]🎨 AI Session Name: {dated_folder}[/bold]")
-            else:
-                dated_folder = f"{SESSION_DATE}_Session"
-
+            # Use simple date-based folder naming
+            dated_folder = f"{SESSION_DATE}_Session"
             final_destination = chosen_destination / dated_folder
             if not preview_mode:
                 final_destination.mkdir(parents=True, exist_ok=True)
-            session_tracker.set_destination(final_destination)
 
             organize_into_folders(results["success"], chosen_destination, final_destination, log_callback)
             summary["final_destination"] = str(final_destination.name)

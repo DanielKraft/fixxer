@@ -1,4 +1,4 @@
-# FIXXER ✞ TUI (v1.0) - Professional-Grade Edition
+# FIXXER ✞ TUI (v1.1) - Refactored & Optimized
 
 ## Terminal User Interface with Hash Verification
 
@@ -32,10 +32,13 @@ python -m fixxer
 
 ### Files
 
-- `src/fixxer/app.py` - Main TUI application (v1.0)
+- `src/fixxer/app.py` - Main TUI application (v1.1)
+- `src/fixxer/config.py` - Configuration management (NEW in v1.1)
+- `src/fixxer/security.py` - Hash verification & sidecar files (NEW in v1.1)
+- `src/fixxer/vision.py` - AI/Ollama & RAW processing (NEW in v1.1)
+- `src/fixxer/engine.py` - Workflow orchestration (v1.1, refactored)
 - `src/fixxer/themes/warez.css` - Standard Mode theme (Warez aesthetic)
 - `src/fixxer/themes/pro.css` - Pro Mode theme (Phantom Redline)
-- `src/fixxer/engine.py` - Backend engine with hash verification (v1.0)
 - `src/fixxer/phrases.py` - Rotating progress messages
 
 ### Dependencies
@@ -112,7 +115,7 @@ This installs the complete professional suite with no optional add-ons needed.
 ### Engine Detection
 
 At startup, the TUI checks for:
-- ✓ dcraw - RAW file conversion
+- ✓ rawpy - RAW file conversion (Python-based, cross-platform)
 - ✓ BRISQUE engine - Image quality assessment
 - ✓ CLIP engine - Semantic burst detection
 
@@ -137,10 +140,19 @@ The TUI automatically saves changes when you modify source, destination, or mode
 
 ## Version History
 
+### FIXXER v1.1.0 (2025-01-21)
+**"Modular Architecture Refactor"**
+- Split monolithic engine.py into focused modules (config, security, vision, engine)
+- Case-insensitive file extension matching (finds both .jpg and .JPG)
+- Removed deprecated dcraw, replaced with rawpy for RAW conversion
+- Fixed Easy Button (Simple Sort) workflow
+- Cleaned up dead code (MockSessionTracker, check_dcraw)
+- Version bumped across all components
+
 ### FIXXER v1.0 (2025-01-20)
 **"CHAOS PATCHED // LOGIC INJECTED"**
 - SHA256 hash verification for all file operations
-- JSON sidecar audit trail (.fixxer.json files)  
+- JSON sidecar audit trail (.fixxer.json files)
 - Halt-on-mismatch corruption detection
 - Complete rebrand to FIXXER ✞
 - Real-time hash verification logging in TUI
