@@ -361,9 +361,12 @@ fixxer/
 │   └── fixxer/
 │       ├── __init__.py          # Package initialization
 │       ├── __main__.py          # Module entry point (python -m fixxer)
-│       ├── app.py               # Textual TUI application
-│       ├── engine.py            # Core workflow logic + hash verification
+│       ├── app.py               # TUI application (Textual)
+│       ├── config.py            # Configuration management
+│       ├── engine.py            # Workflow orchestration
 │       ├── phrases.py           # Motivational progress phrases
+│       ├── security.py          # SHA256 hash verification & sidecar files
+│       ├── vision.py            # AI/Ollama integration & RAW processing
 │       └── themes/
 │           ├── __init__.py      # Theme package marker
 │           ├── pro.css          # Pro Mode styling (Phantom Redline)
@@ -373,6 +376,7 @@ fixxer/
 ├── README.md                    # Main documentation
 ├── BEGINNERS_GUIDE.md           # Terminal beginner's guide
 ├── README_TUI.md                # TUI-specific documentation
+├── CHANGELOG.md                 # Version history
 └── .gitignore                   # Git exclusions
 ```
 

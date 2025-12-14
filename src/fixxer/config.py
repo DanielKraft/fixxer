@@ -22,7 +22,7 @@ DEFAULT_MODEL_NAME = "qwen2.5vl:3b"
 DEFAULT_CRITIQUE_MODEL = "qwen2.5vl:3b"
 
 # --- Path Settings ---
-DEFAULT_DESTINATION_BASE = Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/negatives"
+DEFAULT_DESTINATION_BASE = Path.home() / "Pictures" / "FIXXER_Output"
 CONFIG_FILE_PATH = Path.home() / ".fixxer.conf"
 
 # --- File Processing Settings ---

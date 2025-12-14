@@ -1,5 +1,5 @@
 """
-Phrase Library for PHOTOSORT v7.1 [CRACKED by GEMINI]
+Phrase Library for FIXXER v1.1
 =====================================================
 200 rotating messages. 
 Style: Warez NFO / Demoscene / Brutal Roast.

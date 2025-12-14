@@ -121,7 +121,7 @@ def write_sidecar_file(
         move_history.append(current_move)
 
         metadata = {
-            "fixxer_version": "1.0",
+            "fixxer_version": "1.1.0",
             "filename": destination_path.name,
             "sha256_source": source_hash,
             "verified": verified,

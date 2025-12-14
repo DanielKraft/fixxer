@@ -37,8 +37,8 @@ python -m fixxer
 - `src/fixxer/security.py` - Hash verification & sidecar files (NEW in v1.1)
 - `src/fixxer/vision.py` - AI/Ollama & RAW processing (NEW in v1.1)
 - `src/fixxer/engine.py` - Workflow orchestration (v1.1, refactored)
-- `src/fixxer/themes/warez.css` - Standard Mode theme (Warez aesthetic)
-- `src/fixxer/themes/pro.css` - Pro Mode theme (Phantom Redline)
+- `src/fixxer/themes/warez.css` - Standard Mode theme
+- `src/fixxer/themes/pro.css` - Pro Mode theme
 - `src/fixxer/phrases.py` - Rotating progress messages
 
 ### Dependencies
@@ -57,8 +57,8 @@ This installs the complete professional suite with no optional add-ons needed.
 - Python 3.8+
 - Terminal with mouse support (iTerm2, Ghostty, or similar)
 - Ollama running locally (for AI features)
-- dcraw (for RAW file support)
-- exiftool (for EXIF metadata)
+- rawpy (installed via pip)
+- exifread (installed via pip)
 
 ### Interface Overview
 
