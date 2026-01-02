@@ -7,6 +7,7 @@ Application settings, defaults, and configuration file management.
 
 from __future__ import annotations
 
+import os
 import configparser
 from pathlib import Path
 from datetime import datetime
@@ -18,6 +19,7 @@ from typing import Dict, Any
 
 # --- Ollama / AI Settings ---
 OLLAMA_URL = "http://localhost:11434/api/chat"
+DEFAULT_API_PROVIDER = "ollama"
 DEFAULT_MODEL_NAME = "qwen2.5vl:3b"
 DEFAULT_CRITIQUE_MODEL = "qwen2.5vl:3b"
 
@@ -153,6 +155,18 @@ def load_app_config() -> Dict[str, Any]:
 
     config['pro_mode'] = parser.getboolean(
         'behavior', 'pro_mode', fallback=False
+    )
+
+    # --- API / Provider Settings ---
+    # Priority: Env Vars > Config File > Defaults
+    config['api_provider'] = os.environ.get(
+        'FIXXER_API_PROVIDER',
+        parser.get('api', 'provider', fallback=DEFAULT_API_PROVIDER)
+    )
+    
+    config['api_endpoint'] = os.environ.get(
+        'FIXXER_API_ENDPOINT',
+        parser.get('api', 'endpoint', fallback=OLLAMA_URL)
     )
 
     return config

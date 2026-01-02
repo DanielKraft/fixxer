@@ -22,10 +22,10 @@ from typing import Optional, Tuple, List, Dict, Any, Callable
 # Import config module (for mutable RAW_SUPPORT)
 from . import config
 from .config import (
-    OLLAMA_URL,
     INGEST_TIMEOUT,
     CRITIQUE_TIMEOUT
 )
+from .vision_providers import get_provider
 
 
 # ==============================================================================
@@ -70,6 +70,16 @@ After your analysis, you MUST return **ONLY a single, valid JSON object**. Do no
 def no_op_logger(message: str) -> None:
     """A dummy logger that does nothing, for when no callback is provided."""
     pass
+
+
+# ==============================================================================
+# PROVIDER HELPER
+# ==============================================================================
+
+def _get_active_provider():
+    """Helper to get the configured vision provider."""
+    app_config = config.load_app_config()
+    return get_provider(app_config)
 
 
 # ==============================================================================
@@ -226,33 +236,26 @@ def check_ollama_connection(
     all_systems_go: bool = True
 ) -> bool:
     """
-    Check if Ollama is running and accessible with 3-line llama narrative.
-
-    Features a bilingual dad joke:
-    - Line 1: "Looking for llamas 🔎🦙"
-    - Line 2: Connection status
-    - Line 3: "¿Cómo se Llama? Se llama 'Speed' 🦙🦙💨" + system status
-
-    Args:
-        log_callback: Logging function
-        all_systems_go: True if all critical dependencies (rawpy, BRISQUE, CLIP) are ready
-
-    Returns:
-        True if Ollama is accessible, False otherwise
+    Check if the vision provider is running and accessible.
+    Maintains legacy naming but delegates to the active provider.
     """
+    app_config = config.load_app_config()
+    provider_name = app_config.get("api_provider", "ollama").lower()
+    provider = get_provider(app_config)
+
     try:
-        # Line 1: The Search
-        log_callback("   [grey]Looking for llamas 🔎🦙[/grey]")
+        if provider_name == "ollama":
+            # Line 1: The Search
+            log_callback("   [grey]Looking for llamas 🔎🦙[/grey]")
+        else:
+            log_callback(f"   [grey]Connecting to {provider_name} vision provider...[/grey]")
 
-        response = requests.get("http://localhost:11434/api/tags", timeout=3)
-
-        if response.status_code == 200:
-            data = response.json()
-            models = data.get('models', [])
-            model_count = len(models)
-
+        if provider.check_connection():
             # Line 2: The Discovery
-            log_callback(f"   [green]✓ Ollama connected[/green] ({model_count} models)")
+            if provider_name == "ollama":
+                log_callback(f"   [green]✓ Ollama connected[/green]")
+            else:
+                log_callback(f"   [green]✓ {provider_name.upper()} provider connected[/green]")
 
             # Line 3: The Punchline + System Status
             if all_systems_go:
@@ -260,22 +263,20 @@ def check_ollama_connection(
             else:
                 status = "[yellow]⚠️  (limited features)[/yellow]"
 
-            log_callback(f"   [grey]¿Cómo se Llama? Se llama 'Speed' 🦙🦙💨 {status}[/grey]")
+            if provider_name == "ollama":
+                log_callback(f"   [grey]¿Cómo se Llama? Se llama 'Speed' 🦙🦙💨 {status}[/grey]")
+            else:
+                log_callback(f"   [grey]Vision system ready {status}[/grey]")
 
             return True
         else:
-            log_callback(f"   [red]✗ Ollama API returned status {response.status_code}[/red]")
+            log_callback(f"   [red]✗ {provider_name.capitalize()} connection failed[/red]")
+            if provider_name == "ollama":
+                 log_callback("   Start with: ollama serve")
             return False
 
-    except requests.exceptions.Timeout:
-        log_callback("   [red]✗ Ollama connection timeout[/red]")
-        return False
-    except requests.exceptions.ConnectionError:
-        log_callback("   [red]✗ Ollama not running[/red]")
-        log_callback("   Start with: ollama serve")
-        return False
     except Exception as e:
-        log_callback(f"   [red]✗ Ollama check failed:[/red] {e}")
+        log_callback(f"   [red]✗ Connection check failed:[/red] {e}")
         return False
 
 
@@ -322,11 +323,9 @@ You MUST return ONLY a single, valid JSON object, formatted *exactly* like this:
     }
 
     try:
-        response = requests.post(OLLAMA_URL, json=payload, timeout=INGEST_TIMEOUT)
-        response.raise_for_status()
-        result = response.json()
-        json_string = result['message']['content'].strip()
-        data = json.loads(json_string)
+        provider = _get_active_provider()
+        json_string = provider.send_request(payload, timeout=INGEST_TIMEOUT)
+        data = json.loads(json_string.strip())
         filename = data.get("filename")
         tags = data.get("tags")
         if not filename or not isinstance(tags, list):
@@ -454,10 +453,9 @@ def critique_single_image(
 
     try:
         log_callback(f"   [grey]Sending to {model_name} for analysis...[/grey]")
-        response = requests.post(OLLAMA_URL, json=payload, timeout=CRITIQUE_TIMEOUT)
-        response.raise_for_status()
-        result = response.json()
-        json_string = result['message']['content'].strip()
+        provider = _get_active_provider()
+        json_string = provider.send_request(payload, timeout=CRITIQUE_TIMEOUT)
+        json_string = json_string.strip()
 
         # Clean up potential markdown formatting
         if json_string.startswith("```"):
