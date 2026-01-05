@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fixxer"
-version = "1.1.0"
+version = "1.2.0"
 description = "Professional-grade photography workflow automation with AI vision and cryptographic integrity verification"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -83,7 +83,7 @@ fixxer = "fixxer.app:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-packages = ["fixxer", "fixxer.themes"]
+packages = ["fixxer", "fixxer.themes", "fixxer.vision_providers"]
 
 [tool.setuptools.package-data]
 fixxer = ["themes/*.css"]

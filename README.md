@@ -1,7 +1,7 @@
 # FIXXER ✞ PRO
 ### Professional-Grade Photography Workflow Automation
 
-![Version](https://img.shields.io/badge/version-1.1.0-red.svg)
+![Version](https://img.shields.io/badge/version-1.2.0-red.svg)
 ![Python](https://img.shields.io/badge/python-3.10--3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -27,7 +27,8 @@ Built for photographers who demand both **speed** and **safety** in their digita
 - Production-tested: 120+ files, zero corruption
 
 ### 🤖 **AI-Powered Workflows**
-- **Vision-based naming** using Ollama models (qwen2.5vl, llava, etc.)
+- **Vision-based naming** using Ollama or OpenAI-compatible APIs (qwen2.5vl, llava, etc.)
+- **Multiple API provider support** - Ollama (default), llama.cpp, vLLM, LocalAI
 - **Semantic burst detection** with CLIP embeddings
 - **AI session naming** from visual analysis
 - **Creative critique mode** for artistic feedback
@@ -281,6 +282,38 @@ Complete end-to-end processing:
 
 Configuration is stored in `~/.fixxer.conf`:
 
+### API Provider Configuration
+
+FIXXER supports multiple vision API providers while maintaining Ollama as the zero-config default.
+
+**Default (Ollama)** - No configuration needed:
+```ini
+# No [api] section needed - Ollama at localhost:11434 is automatic
+```
+
+**OpenAI-Compatible APIs** (llama.cpp, vLLM, LocalAI, Jan):
+
+Via config file (`~/.fixxer.conf`):
+```ini
+[api]
+provider = openai
+endpoint = http://localhost:8080/v1/chat/completions
+```
+
+Via environment variables (overrides config file):
+```bash
+export FIXXER_API_PROVIDER=openai
+export FIXXER_API_ENDPOINT=http://localhost:8080/v1/chat/completions
+```
+
+**Supported Providers:**
+- `ollama` (default) - Local Ollama instance at localhost:11434
+- `openai` - Any OpenAI-compatible vision API (llama.cpp server, vLLM, LocalAI, Jan, etc.)
+
+**Configuration Priority:** Environment Variables > Config File > Defaults
+
+### Core Configuration Options
+
 ### Understanding `burst_auto_name`
 
 The **Burst** workflow can operate in two modes:
@@ -298,6 +331,10 @@ The **Burst** workflow can operate in two modes:
 **Note:** The **Auto Workflow** always uses AI naming regardless of this setting (it's designed for complete end-to-end processing).
 
 ```ini
+[api]
+provider = ollama                # Options: ollama (default), openai
+endpoint =                       # Optional custom endpoint (blank = use provider defaults)
+
 [ingest]
 default_model = qwen2.5vl:3b
 default_destination = ~/Pictures/Sorted
@@ -340,7 +377,9 @@ Source File
 ```
 
 ### **AI Vision Integration**
-- **Ollama API**: Local LLM inference (no cloud, no privacy concerns)
+- **Provider Abstraction**: Supports Ollama and OpenAI-compatible APIs
+- **Local-first**: Ollama API default (no cloud, no privacy concerns)
+- **Flexible Deployment**: Works with llama.cpp, vLLM, LocalAI, Jan, or any OpenAI-compatible vision API
 - **JSON-structured responses**: Deterministic parsing
 - **Base64 image encoding**: Direct vision model analysis
 - **Fallback chains**: Graceful degradation on timeouts
@@ -366,7 +405,12 @@ fixxer/
 │       ├── engine.py            # Workflow orchestration
 │       ├── phrases.py           # Motivational progress phrases
 │       ├── security.py          # SHA256 hash verification & sidecar files
-│       ├── vision.py            # AI/Ollama integration & RAW processing
+│       ├── vision.py            # AI vision integration & RAW processing
+│       ├── vision_providers/    # AI provider abstraction layer
+│       │   ├── __init__.py      # Provider factory
+│       │   ├── base.py          # Abstract base class
+│       │   ├── ollama.py        # Ollama provider implementation
+│       │   └── openai_compat.py # OpenAI-compatible provider
 │       └── themes/
 │           ├── __init__.py      # Theme package marker
 │           ├── pro.css          # Pro Mode styling (Phantom Redline)
@@ -388,7 +432,7 @@ Example `.fixxer.json`:
 
 ```json
 {
-  "fixxer_version": "1.1.0",
+  "fixxer_version": "1.2.0",
   "filename": "golden-hour-cityscape.jpg",
   "original_path": "/source/IMG_1234.jpg",
   "final_path": "/archive/2024-11-20_Urban/Architecture/golden-hour-cityscape.jpg",

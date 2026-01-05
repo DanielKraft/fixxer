@@ -2,6 +2,33 @@
 
 All notable changes to FIXXER PRO will be documented in this file.
 
+## [v1.2.0] - Multi-Provider Vision API Support
+
+### Added
+- **OpenAI-compatible API provider adapter** - Support for llama.cpp, vLLM, LocalAI, Jan, and any OpenAI-compatible vision API (#8)
+- **Provider abstraction layer** - Clean architecture with `VisionProvider` base class
+- **OllamaProvider** - Default provider (backward compatible, zero config changes required)
+- **OpenAICompatProvider** - Handles OpenAI `/v1/chat/completions` format with automatic payload translation
+- **Environment variable configuration** - `FIXXER_API_PROVIDER` and `FIXXER_API_ENDPOINT` for runtime provider selection
+- **Config file API section** - `[api]` section in `~/.fixxer.conf` for provider settings
+- **Configuration priority system** - Environment Variables > Config File > Defaults
+
+### Changed
+- Vision API calls now use provider abstraction instead of direct Ollama integration
+- Connection checking is now provider-agnostic
+- Default behavior unchanged - Ollama remains the zero-config default
+
+### Fixed
+- Improved error handling for vision API failures across different providers
+
+### Technical Details
+- New `vision_providers/` module with factory pattern for provider instantiation
+- Payload translation from Ollama format to OpenAI multi-modal content structure
+- Graceful fallback for connection checks (tries `/v1/models` then base URL)
+- Maintains full backward compatibility with existing Ollama workflows
+
+---
+
 ## [v1.1.0] - Modular Architecture Refactor
 
 ### Added
