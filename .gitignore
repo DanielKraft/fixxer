@@ -149,6 +149,7 @@ ollama_models/
 .project
 .pydevproject
 .settings/
+*.code-workspace
 
 # ============================================
 # OS

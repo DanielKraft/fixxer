@@ -136,6 +136,11 @@ def load_app_config() -> Dict[str, Any]:
         fallback=False
     )
 
+    config['burst_file_rename'] = parser.getboolean(
+        'burst', 'burst_file_rename',
+        fallback=False
+    )
+
     config['critique_model'] = parser.get(
         'critique', 'default_model',
         fallback=DEFAULT_CRITIQUE_MODEL

@@ -318,7 +318,10 @@ export FIXXER_API_ENDPOINT=http://localhost:8080/v1/chat/completions
 
 The **Burst** workflow can operate in two modes:
 
-- **Fast Mode (default)**: `burst_auto_name = false`
+- **Fast Mode (default)**: `burst_file_rename = false`
+  - Don't rename files
+
+- **Burst Rename Mode**: `burst_auto_name = false`
   - Groups bursts, picks the best frame, uses numeric naming (`burst-001`, `burst-002`)
   - **Much faster** - no AI naming overhead
   - Great for quick organization - you can run Easy Archive later for AI naming
@@ -350,6 +353,7 @@ exposure_good_pct = 0.05
 burst_algorithm = legacy
 similarity_threshold = 8
 burst_auto_name = false        # Set to 'true' to enable AI naming in Burst workflow (slower)
+burst_file_rename = false
 
 [folders]
 burst_parent_folder = true

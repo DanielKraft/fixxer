@@ -808,8 +808,14 @@ def auto_workflow(
             for f in tier_a_dir.iterdir():
                 if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS:
                     hero_files.append(f)
-
-        burst_parent = directory / "_Bursts"
+    
+        # v1.3: Fix no '_pick_' files found 
+        use_parent_folder = app_config.get('burst_parent_folder', True)
+        if use_parent_folder:
+            burst_parent = directory / "_Bursts"
+        else:
+            burst_parent = directory
+        
         burst_folders = []
         if burst_parent.exists() and burst_parent.is_dir():
             burst_folders = [f for f in burst_parent.iterdir() if f.is_dir()]
@@ -819,6 +825,7 @@ def auto_workflow(
                 for f in burst_folder.iterdir():
                     if f.is_file() and (f.name.startswith(BEST_PICK_PREFIX) or is_already_ai_named(f.name)):
                         hero_files.append(f)
+
 
     if not hero_files:
         log_callback(f"\n   No '{TIER_A_FOLDER}' or '_PICK_' files found. Nothing to archive.")
@@ -1071,6 +1078,9 @@ def group_bursts_in_directory(
     # v1.1: Check if AI naming is enabled for burst workflow
     burst_auto_name = app_config.get('burst_auto_name', False)
 
+    # v1.3: New configuration options to disable file renaming
+    burst_file_rename = app_config.get('burst_file_rename', False)
+
     if burst_auto_name:
         # [LOGIC PATCH] Only create the physical rename log if this is a REAL run
         if preview_mode:
@@ -1127,11 +1137,18 @@ def group_bursts_in_directory(
         alternate_counter = 1
         for file_path in group:
             extension = file_path.suffix
+            old_name = file_path.stem
             if winner_data and file_path == winner_data[0]:
-                new_name = f"{base_name}_PICK{extension}"
+                if burst_file_rename:
+                    new_name = f"{base_name}_PICK{extension}"
+                else:
+                    new_name = f"{old_name}_PICK{extension}"
             else:
-                new_name = f"{base_name}_{alternate_counter:03d}{extension}"
-                alternate_counter += 1
+                if burst_file_rename:
+                    new_name = f"{base_name}_{alternate_counter:03d}{extension}"
+                    alternate_counter += 1
+                else:
+                    new_name = f"{old_name}{extension}"
             
             new_file_path = folder_path / new_name
             try:
